@@ -1522,8 +1522,14 @@ body.theme-flux #cosmic-bg{filter:hue-rotate(150deg) saturate(1.3) brightness(.8
 .sed-dur-row b{color:#FFD060;font-weight:700;}
 .sed-title{font-family:'Cinzel Decorative',serif;font-size:.85rem;color:#F3D9FF;letter-spacing:.05em;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;}
+.sed-zoom-row{display:flex;align-items:center;gap:.4rem;margin-bottom:.3rem;}
+.sed-zoom-row .fbf-step{padding:.2rem .55rem;font-size:.75rem;}
+#sed-zoom-val{font-family:'Cinzel Decorative',serif;font-size:.72rem;color:#FFD060;min-width:38px;text-align:center;}
+.sed-zoom-hint{font-size:.6rem;color:rgba(200,170,255,.4);font-style:italic;margin-left:auto;}
+#sed-ruler-wrap{height:20px;border-radius:6px 6px 0 0;overflow:hidden;}
+#sed-ruler-canvas{width:100%;height:100%;display:block;}
 #sed-wave-wrap{position:relative;height:140px;background:rgba(0,0,0,.35);border:1px solid rgba(200,160,255,.2);
-  border-radius:10px;overflow:hidden;touch-action:none;}
+  border-top:none;border-radius:0 0 10px 10px;overflow:hidden;touch-action:none;}
 #sed-wave-canvas{width:100%;height:100%;display:block;}
 .sed-handle{position:absolute;top:0;bottom:0;width:22px;margin-left:-11px;cursor:ew-resize;z-index:2;}
 .sed-handle::before{content:'';position:absolute;top:0;bottom:0;left:10px;width:2px;background:#FFD060;box-shadow:0 0 8px #FFD060;}
@@ -2053,6 +2059,14 @@ Lignes lumineuses colorées par ratio fréquentiel sacré.
     <span>Durée originale : <b id="sed-dur-total">—</b></span>
     <span>Sélection : <b id="sed-dur-sel">—</b></span>
   </div>
+  <div class="sed-zoom-row">
+    <button class="fbf-step" onclick="sedZoom(1/1.6)" title="Dézoomer">−</button>
+    <span id="sed-zoom-val">100%</span>
+    <button class="fbf-step" onclick="sedZoom(1.6)" title="Zoomer">+</button>
+    <button class="fbf-step" onclick="sedZoomFit()" title="Vue globale">⤢ Fit</button>
+    <span class="sed-zoom-hint">glisser pour naviguer</span>
+  </div>
+  <div id="sed-ruler-wrap"><canvas id="sed-ruler-canvas"></canvas></div>
   <div id="sed-wave-wrap">
     <canvas id="sed-wave-canvas"></canvas>
     <div class="sed-handle" id="sed-handle-in" style="left:0%;"></div>
@@ -2285,33 +2299,31 @@ let metaAngle = 0, masterRAF = null;
 let _waveBuf = null;
 let _spectroidBuf = null;
 const OSC_WAVES  = {}; // id → clé de OSC_ENGINES
+const DUAL_STATE = {}; // id → { on:boolean, detune:cents (-72..72) } — FX "Dual Sinus"
 const OSC_FILTER = {}; // id → {cutoff:Hz, res:Q}
 const OSC_ENV    = {}; // id → {a:attack s, r:release s}
 
 // Moteurs d'oscillateur façon FL MiniSynth / MiniBrute (multi-partiels)
 // partiel : { t:type, d:détune cents, g:gain, r:ratio de fréquence }
+// Moteur 100% sinusoïdale pure (Saw/Square et dérivés retirés — plus aucune
+// forme d'onde riche en harmoniques non maîtrisées, seul le sinus reste).
+// Le gain de chaque partiel est normalisé pour que la somme des voix ne
+// dépasse jamais l'amplitude d'un sinus seul (pas de surcharge du device).
 const OSC_ENGINES = {
   sine:     [{t:'sine',d:0,g:1}],
-  sine2:    [{t:'sine',d:-7,g:.62},{t:'sine',d:7,g:.62}],
-  triangle: [{t:'triangle',d:0,g:1}],
-  square:   [{t:'square',d:0,g:.85}],
-  sawtooth: [{t:'sawtooth',d:0,g:.9}],
-  sawsin:   [{t:'sawtooth',d:0,g:.5},{t:'sine',d:0,g:.65}],
-  sawsqr:   [{t:'sawtooth',d:-4,g:.5},{t:'square',d:4,g:.4}],
-  dualsaw:  [{t:'sawtooth',d:-9,g:.5},{t:'sawtooth',d:9,g:.5}],
-  defsaw:   [{t:'sawtooth',d:-13,g:.42},{t:'sawtooth',d:0,g:.5},{t:'sawtooth',d:13,g:.42}],
+  wide2:    [{t:'sine',d:-9,g:.62},{t:'sine',d:9,g:.62}],
+  wide5:    [{t:'sine',d:-18,g:.30},{t:'sine',d:-9,g:.36},{t:'sine',d:0,g:.42},{t:'sine',d:9,g:.36},{t:'sine',d:18,g:.30}],
   defsin:   [{t:'sine',d:-13,g:.42},{t:'sine',d:0,g:.5},{t:'sine',d:13,g:.42}],
   voixduo:  [{t:'sine',d:0,g:.62},{t:'sine',d:0,g:.5,r:3/2}],
   voixtrio: [{t:'sine',d:0,g:.55},{t:'sine',d:0,g:.42,r:5/4},{t:'sine',d:0,g:.42,r:3/2}],
   voixquat: [{t:'sine',d:0,g:.5},{t:'sine',d:0,g:.38,r:5/4},{t:'sine',d:0,g:.38,r:3/2},{t:'sine',d:0,g:.32,r:2}],
   // FM Sinus — réservé au réglage manuel (non tiré par le jeu aléatoire).
   // Représentation nominale ici ; le vrai moteur FM (porteuse + modulateur
-  // doux) est construit à part dans buildOsc() pour rester chaleureux.
+  // doux, tous deux sinus) est construit à part dans buildOsc().
   fmsine:   [{t:'sine',d:0,g:1}],
 };
 const OSC_ENGINE_LABELS = {
-  sine:'≈ Sin', sine2:'≈≈ Sin×2', triangle:'△ Tri', square:'⊓ Carré', sawtooth:'◣ Saw',
-  sawsin:'Saw+Sin', sawsqr:'Saw+Carré', dualsaw:'Saw×2', defsaw:'DefSaw', defsin:'DefSin',
+  sine:'≈ Sin', wide2:'≈≈ Wide×2', wide5:'≈≈≈ Wide×5', defsin:'DefSin',
   voixduo:'Voix Duo', voixtrio:'Voix Trio', voixquat:'Voix Quat', fmsine:'FM ≈ Sin',
 };
 
@@ -2342,6 +2354,35 @@ function setGrainDrift(v) {
   GRAIN_STATE.drift = Math.max(0, Math.min(1, parseFloat(v)));
   if (_driftDepth) _driftDepth.gain.setTargetAtTime(GRAIN_STATE.drift * 5, aNow(), 0.1);
   const el = document.getElementById('sv-grain-drift'); if (el) el.textContent = GRAIN_STATE.drift.toFixed(2);
+}
+
+// ── Émulation douce "Blues Driver" (façon pédale Boss BD-2) ───────
+// Clip asymétrique + douce compression médium, jamais agressif : le
+// drive réel envoyé à la courbe est TOUJOURS plafonné à 50% de la valeur
+// du curseur (0-100%), pour rester harmonieux (pas de distorsion crue).
+const BLUES_STATE = { on: false, drive: 0 }; // drive: 0-1 tel qu'affiché au curseur
+function _bluesDriverCurve(driveSlider) {
+  const drive = Math.min(driveSlider, 1) * 0.5; // bridage 50% — cf demande explicite
+  const n = 1024, c = new Float32Array(n);
+  const k = 2 + drive * 14; // clip doux, jamais brutal même à fond de course
+  for (let i = 0; i < n; i++) {
+    const x = (i / (n - 1)) * 2 - 1;
+    // Léger biais positif (asymétrie diode) façon overdrive à lampe/diode,
+    // signature du Blues Driver — chaleureux, pas métallique.
+    const biased = x + drive * 0.06;
+    c[i] = Math.tanh(k * biased) / Math.tanh(k);
+  }
+  return c;
+}
+function setBluesDrive(v) {
+  const was = BLUES_STATE.on && BLUES_STATE.drive > 0.001;
+  BLUES_STATE.drive = Math.max(0, Math.min(1, parseFloat(v)));
+  BLUES_STATE.on = BLUES_STATE.drive > 0.001;
+  const now = BLUES_STATE.on;
+  if (was !== now && flowing) { rebuildAllOscs(); }   // insère/retire le saturateur proprement
+  else { const curve = now ? _bluesDriverCurve(BLUES_STATE.drive) : null;
+         Object.values(nodes).forEach(n => { if (n && n.bluesShaper) n.bluesShaper.curve = curve; }); }
+  const el = document.getElementById('sv-blues-drive'); if (el) el.textContent = BLUES_STATE.drive.toFixed(2);
 }
 
 /* ---------- 2.1 · OSCILLATEURS (persistants, retune lisse) ---------- */
@@ -2393,6 +2434,22 @@ function buildOsc(id, freq, vol, pan) {
     });
   }
 
+  // FX Dual Sinus : une sinusoïdale supplémentaire, detune indépendamment
+  // du moteur choisi (±72 cents), pour épaissir le jeu sur cette voix.
+  // Toujours répercuté sur Ida côté appelant (setPairDualSinus) — garde
+  // la paire binaurale symétrique en timbre.
+  const dual = DUAL_STATE[id];
+  if (dual && dual.on) {
+    const dosc = c.createOscillator(); dosc.type = 'sine';
+    dosc.frequency.value = f0;
+    dosc.detune.value = dual.detune;
+    const dg = c.createGain(); dg.gain.value = 0.55; // voix d'appoint, pas un doublement du volume
+    dosc.connect(dg); dg.connect(signalIn);
+    if (_driftDepth) { try { _driftDepth.connect(dosc.detune); } catch(e) {} }
+    dosc.start();
+    subs.push({ osc: dosc, ratio: 1 });
+  }
+
   // Grain analogique : saturation douce — UNIQUEMENT si activé (sinon trajet 100% propre)
   const grainOn = GRAIN_STATE.on && GRAIN_STATE.drive > 0.001;
   let shaper = null;
@@ -2400,6 +2457,15 @@ function buildOsc(id, freq, vol, pan) {
     shaper = c.createWaveShaper();
     shaper.oversample = '4x';
     shaper.curve = _grainCurve(GRAIN_STATE.drive);
+  }
+  // Blues Driver : second étage de saturation optionnel, chaîné après le
+  // grain — indépendant, peut être utilisé seul ou en plus du grain.
+  const bluesOn = BLUES_STATE.on && BLUES_STATE.drive > 0.001;
+  let bluesShaper = null;
+  if (bluesOn) {
+    bluesShaper = c.createWaveShaper();
+    bluesShaper.oversample = '4x';
+    bluesShaper.curve = _bluesDriverCurve(BLUES_STATE.drive);
   }
 
   const p   = c.createStereoPanner(); p.pan.value = pan;
@@ -2410,8 +2476,12 @@ function buildOsc(id, freq, vol, pan) {
   const g      = c.createGain(); g.gain.value = 0;
   const hiTrim = c.createGain(); hiTrim.gain.value = 1;
 
-  if (shaper) { signalIn.connect(shaper); shaper.connect(p); }
-  else        { signalIn.connect(p); }      // sinus pure → aucun traitement
+  // Chaîne : signalIn → [grain] → [blues driver] → panner — chaque étage
+  // reste optionnel et court-circuité si désactivé (trajet 100% propre).
+  let _tail = signalIn;
+  if (shaper)      { _tail.connect(shaper); _tail = shaper; }
+  if (bluesShaper) { _tail.connect(bluesShaper); _tail = bluesShaper; }
+  _tail.connect(p);
   p.connect(hpf); hpf.connect(flt); flt.connect(g); g.connect(hiTrim);
   hiTrim.connect(masterGain);
 
@@ -2423,7 +2493,7 @@ function buildOsc(id, freq, vol, pan) {
   hiTrim.connect(fxSend);
   if (typeof reverbSendBus !== 'undefined' && reverbSendBus) { try { fxSend.connect(reverbSendBus); } catch(e) {} }
 
-  const node = { _id: id, o: subs[0].osc, subs, signalIn, shaper, g, p, hpf, flt, hiTrim, fxSend };
+  const node = { _id: id, o: subs[0].osc, subs, signalIn, shaper, bluesShaper, g, p, hpf, flt, hiTrim, fxSend };
   applyHiBand(node, f0);
   if (OSC_PATCH[id]) setTimeout(() => _reapplyOscPatch(id), 20);
   if (!mutedOscs[id] && vol > 0) {
@@ -2467,6 +2537,7 @@ function releaseOsc(node) {
       node.g.disconnect(); node.p.disconnect();
       if (node.signalIn) node.signalIn.disconnect();
       if (node.shaper)  node.shaper.disconnect();
+      if (node.bluesShaper) node.bluesShaper.disconnect();
       if (node.hpf)     node.hpf.disconnect();
       if (node.flt)     node.flt.disconnect();
       if (node.hiTrim)  node.hiTrim.disconnect();
@@ -2837,8 +2908,8 @@ function _bindMediaSession() {
 function setChorusDepth(v) { /* no-op : chorus supprimé */ }
 function setChorusRate(v)  { /* no-op */ }
 /* ---------- 2.6c · OSCILLATEUR — WAVEFORM & FILTRE ---------- */
-const OSC_WAVE_TYPES = ['sine','sine2','triangle','square','sawtooth'];
-const OSC_WAVE_LABELS = { sine:'≈ Sin', sine2:'≈≈ Sin+', triangle:'△ Tri', square:'⊓ Sqr', sawtooth:'/ Saw' };
+const OSC_WAVE_TYPES = ['sine','wide2','wide5'];
+const OSC_WAVE_LABELS = { sine:'≈ Sin', wide2:'≈≈ Wide×2', wide5:'≈≈≈ Wide×5' };
 
 function setOscWave(id, type) {
   OSC_WAVES[id] = type;
@@ -2939,8 +3010,9 @@ function getFXState() {
                           fb:pingPongDelay._fbLR.gain.value,
                           wet:ppWet ? ppWet.gain.value : 0 } : null,
     fxInt: fxSendG ? fxSendG.gain.value : 0.3,
-    lfo: { ...LFO_STATE }, breath: { ...BREATH_STATE }, grain: { ...GRAIN_STATE },
+    lfo: { ...LFO_STATE }, breath: { ...BREATH_STATE }, grain: { ...GRAIN_STATE }, blues: { ...BLUES_STATE },
     waves: { ...OSC_WAVES },
+    dual: JSON.parse(JSON.stringify(DUAL_STATE)),
     filters: JSON.parse(JSON.stringify(OSC_FILTER)),
     pairFX: { ...PAIR_FX }
   };
@@ -2966,8 +3038,10 @@ function applyFXState(s) {
                   const c=document.getElementById('lfo-on'); if (c) c.checked=!!s.lfo.on; }
   if (s.breath) { BREATH_STATE.rate=s.breath.rate; BREATH_STATE.depth=s.breath.depth; breathToggle(!!s.breath.on); }
   if (s.grain)  { GRAIN_STATE.on=s.grain.on!==false; setGrainDrive(s.grain.drive); setGrainDrift(s.grain.drift); }
+  if (s.blues)  { setBluesDrive(s.blues.drive); }
   let wavesChanged = false;
   if (s.waves)   { if (JSON.stringify(OSC_WAVES) !== JSON.stringify(s.waves)) wavesChanged = true; Object.assign(OSC_WAVES, s.waves); }
+  if (s.dual)    { if (JSON.stringify(DUAL_STATE) !== JSON.stringify(s.dual)) wavesChanged = true; Object.assign(DUAL_STATE, s.dual); }
   if (s.filters) { Object.keys(s.filters).forEach(id => { OSC_FILTER[id] = s.filters[id]; if (nodes[id]) setOscFilter(id, s.filters[id].cutoff, s.filters[id].res); }); }
   if (s.pairFX)  { Object.keys(s.pairFX).forEach(id => { PAIR_FX[id] = s.pairFX[id]; const n=nodes[id]; if (n?.fxSend) n.fxSend.gain.setTargetAtTime(s.pairFX[id]!==false?FX_SEND_LEVEL:0, aNow(), 0.08); }); }
   if (wavesChanged) rebuildAllOscs();
@@ -3231,6 +3305,30 @@ function setOscEngine(id, key) {
 function setPairEngine(i, key) {
   setOscEngine(PAIRS[i].pingala.id, key);
   setOscEngine(PAIRS[i].ida.id, key);
+}
+// FX "Dual Sinus" : ajoute une 2e sinusoïdale detune (indépendante du
+// moteur choisi) par-dessus l'oscillateur, pour épaissir une ou deux
+// fréquences ciblées. Change la structure du son → nécessite un rebuild
+// complet (comme un changement de moteur), pas juste une retune.
+function setOscDual(id, on, detune) {
+  const cur = DUAL_STATE[id] || { on: false, detune: 12 };
+  if (on != null) cur.on = !!on;
+  if (detune != null) cur.detune = Math.max(-72, Math.min(72, parseFloat(detune)));
+  DUAL_STATE[id] = cur;
+  if (!flowing) return;
+  PAIRS.forEach((p, i) => {
+    if (p.pingala.id === id) { if (nodes[id]) { releaseOsc(nodes[id]); delete nodes[id]; } swapPingala(i); }
+    else if (p.ida.id === id) { if (nodes[id]) { releaseOsc(nodes[id]); delete nodes[id]; } swapIda(i); }
+  });
+}
+// Toujours répercuté sur Ida — une paire binaurale doit garder le même
+// timbre dans les deux oreilles, sinon le cerveau ne fusionne plus les
+// deux fréquences en un seul battement perçu.
+function setPairDualSinus(i, on, detune) {
+  setOscDual(PAIRS[i].pingala.id, on, detune);
+  setOscDual(PAIRS[i].ida.id, on, detune);
+  const btn = document.getElementById('dualon-' + i);
+  if (btn) { const isOn = DUAL_STATE[PAIRS[i].pingala.id].on; btn.classList.toggle('on', isOn); btn.textContent = isOn ? '● ON' : '○ OFF'; }
 }
 function setOscEnv(id, a, r) {
   const cur = OSC_ENV[id] || { a: 0, r: 0 };
@@ -4469,7 +4567,7 @@ function _drawFundamental(min, max) {
 // 3 duos-miroir OmcV (ratios réciproques) — leur position change à chaque tirage
 const RATIO_DUOS = [[0, 1], [2, 3], [4, 5]];
 // Formes d'onde tirées au hasard par paire — FM Sinus réservé au réglage manuel
-const WAVE_POOL = ['sine', 'sine2', 'defsin'];
+const WAVE_POOL = ['sine', 'wide2', 'defsin'];
 
 // Anti-rafale : un tap répété ne doit jamais empiler les rebuilds
 // d'oscillateurs (thread audio protégé, 0 craquement).
@@ -5040,6 +5138,12 @@ function buildMasterFXHTML() {
         <button class="fx-space-btn" onclick="setReverbSpace('cathedrale')">Cathéd.</button>
         <button class="fx-space-btn" onclick="setReverbSpace('cosmos')">Cosmos</button>
       </div>
+      <div class="fxq-sep"></div>
+      <!-- Blues Driver : saturation douce façon pédale, toujours bridée à 50% en interne -->
+      <div class="fxq-row"><span class="fxq-lbl">Blues Driver</span>
+        <input type="range" class="fx-slider" id="bluesDrive" min="0" max="1" step="0.02" value="0" oninput="setBluesDrive(this.value)">
+        <span class="fx-val-disp" id="sv-blues-drive">0.00</span></div>
+      <div class="osc-hint" style="margin-top:-.1rem;">Émulation pédale, douce et harmonieuse — bridée à 50% de drive réel quel que soit le curseur</div>
       <button class="btn-flow" style="width:100%;margin-top:.4rem;border-color:rgba(255,208,96,.5);color:#FFD060;background:rgba(255,208,96,.07);" onclick="triggerRandomFX()">✦ Random FX</button>
     </div>
 
@@ -5377,12 +5481,23 @@ function buildPairHTML(pair, i) {
   const fcut = (OSC_FILTER[PAIRS[i].pingala.id]||{cutoff:20000}).cutoff;
   const fres = (OSC_FILTER[PAIRS[i].pingala.id]||{res:0}).res;
   const env  = (typeof OSC_ENV!=='undefined' && OSC_ENV[PAIRS[i].pingala.id]) || {a:0,r:0};
+  const dual = (typeof DUAL_STATE!=='undefined' && DUAL_STATE[PAIRS[i].pingala.id]) || {on:false, detune:12};
   const oscTabHTML = `
     <div class="osc-sec-t" style="color:${c}aa;">Moteur d'onde</div>
     <div class="eng-grid">
       ${Object.keys(OSC_ENGINE_LABELS).map(k=>`<button class="eng-btn${curEng===k?' on':''}" id="eng-${i}-${k}"
         onclick="pickEngine(${i},'${k}')" style="--ec:${c};">${OSC_ENGINE_LABELS[k]}</button>`).join('')}
     </div>
+    <div class="osc-sec-t" style="color:${c}aa;">FX Dual Sinus <span style="opacity:.6;">(épaissit le jeu, miroir sur Ida)</span></div>
+    <div class="fx-onoff-row">
+      <span class="ctl-l">Dual Sinus</span>
+      <button id="dualon-${i}" class="fx-onoff${dual.on?' on':''}" style="--ec:${c};"
+        onclick="setPairDualSinus(${i},!${dual.on},null)">${dual.on?'● ON':'○ OFF'}</button>
+    </div>
+    <div class="ctl-row"><span class="ctl-l">Detune</span>
+      <input type="range" min="-72" max="72" step="1" value="${dual.detune}" style="color:${c};"
+        oninput="setPairDualSinus(${i},true,this.value);this.nextElementSibling.textContent=this.value+' ct'">
+      <span class="ctl-v">${dual.detune} ct</span></div>
     <div class="osc-sec-t" style="color:${c}aa;">Filtre · Cutoff / Résonance</div>
     <div class="ctl-row"><span class="ctl-l">Cutoff</span>
       <input type="range" min="60" max="6000" step="5" value="${Math.min(6000,fcut)}" style="color:${c};"
@@ -7568,7 +7683,8 @@ function sampleBankRandomGame() {
 }
 
 /* ---------- 9.8 · ÉDITEUR DE DÉCOUPE ---------- */
-let _sed = { folderId: null, idx: null, buf: null, big: false, wavHeader: null, wavUrl: null, inSec: 0, outSec: 0, dragging: null, previewSrc: null, _bound: false, _gen: 0 };
+let _sed = { folderId: null, idx: null, buf: null, big: false, wavHeader: null, wavUrl: null, inSec: 0, outSec: 0, dragging: null, previewSrc: null, _bound: false, _gen: 0,
+  viewStart: 0, viewDur: 0, panning: false, _panStartX: 0, _panStartView: 0 }; // fenêtre visible (zoom/pan), façon FL Studio
 
 function _sedDuration() {
   if (_sed.buf) return _sed.buf.duration;
@@ -7615,6 +7731,8 @@ function sampleEditorOpen(folderId, idx) {
     if (!_sed.buf) { if (noteEl) noteEl.textContent = 'Aperçu indisponible pour ce sample.'; return; }
     if (noteEl) noteEl.textContent = '';
     _sed.outSec = _sed.buf.duration;
+    _sedResetView();
+    _drawSedRuler();
     _drawSedWaveform();
     _updateSedHandles();
   } catch(e) {
@@ -7677,8 +7795,10 @@ async function _sedTryWavFastPath(f) {
     if (!hdr) throw new Error("en-tête WAV non reconnu (seul le PCM entier non compressé est géré par la découpe rapide)");
     _sed.wavHeader = hdr; _sed.wavUrl = url;
     _sed.inSec = 0; _sed.outSec = _sedDuration();
+    _sedResetView();
     if (noteEl) noteEl.textContent = 'Fichier volumineux (WAV) : découpe précise par plage d\'octets, sans décodage complet. Forme d\'onde approximative (chargement…).';
     if (decodeBtn) decodeBtn.style.display = 'none';
+    _drawSedRuler();
     _drawSedWaveform();
     _updateSedHandles();
   } catch(e) {
@@ -7711,6 +7831,8 @@ async function sampleEditorDecodeNow() {
     if (decodeBtn) decodeBtn.style.display = 'none';
     if (noteEl) noteEl.textContent = '';
     _sed.outSec = buf.duration;
+    _sedResetView();
+    _drawSedRuler();
     _drawSedWaveform();
     _updateSedHandles();
   } catch(e) {
@@ -7726,9 +7848,66 @@ function sampleEditorClose() {
   _sed._gen++; // annule un éventuel rendu de forme d'onde en cours (fetch par plages)
 }
 
+// ── Timeline zoomable/scrollable façon FL Studio ──────────────────
+const SED_MAX_ZOOM = 60; // fenêtre visible minimale = durée totale / 60
+function _sedResetView() {
+  const dur = _sedDuration();
+  _sed.viewStart = 0;
+  _sed.viewDur = dur || 0;
+  _sedUpdateZoomLabel();
+}
+function _sedClampView() {
+  const dur = _sedDuration(); if (!dur) return;
+  _sed.viewDur = Math.max(dur / SED_MAX_ZOOM, Math.min(dur, _sed.viewDur));
+  _sed.viewStart = Math.max(0, Math.min(dur - _sed.viewDur, _sed.viewStart));
+}
+function _sedUpdateZoomLabel() {
+  const dur = _sedDuration();
+  const el = document.getElementById('sed-zoom-val');
+  if (el) el.textContent = (dur && _sed.viewDur) ? Math.round(dur / _sed.viewDur * 100) + '%' : '100%';
+}
+function sedZoom(factor) {
+  const dur = _sedDuration(); if (!dur) return;
+  const center = _sed.viewStart + _sed.viewDur / 2;
+  _sed.viewDur = _sed.viewDur / factor;
+  _sedClampView();
+  _sed.viewStart = Math.max(0, Math.min(dur - _sed.viewDur, center - _sed.viewDur / 2));
+  _sedRedraw();
+}
+function sedZoomFit() { _sedResetView(); _sedRedraw(); }
+function _sedRedraw() {
+  _sedUpdateZoomLabel();
+  _drawSedRuler();
+  _drawSedWaveform();
+  _updateSedHandles();
+}
+
 function _sedDrawFlatLine(canvas, ctx) {
   ctx.strokeStyle = 'rgba(200,160,255,.35)'; ctx.lineWidth = 1; ctx.beginPath();
   ctx.moveTo(0, canvas.height / 2); ctx.lineTo(canvas.width, canvas.height / 2); ctx.stroke();
+}
+
+// Règle graduée façon FL Studio : ticks + libellés temps adaptés au zoom.
+function _drawSedRuler() {
+  const canvas = document.getElementById('sed-ruler-canvas'); if (!canvas) return;
+  const wrap = canvas.parentElement;
+  canvas.width = wrap.clientWidth; canvas.height = wrap.clientHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const vs = _sed.viewStart, vd = _sed.viewDur; if (!vd) return;
+  const niceSteps = [0.001,0.002,0.005,0.01,0.02,0.05,0.1,0.2,0.5,1,2,5,10,15,30,60,120,300,600,1800];
+  const targetTicks = 7;
+  let step = niceSteps[niceSteps.length - 1];
+  for (const s of niceSteps) { if (vd / s <= targetTicks) { step = s; break; } }
+  ctx.strokeStyle = 'rgba(200,170,255,.4)'; ctx.fillStyle = 'rgba(220,200,255,.85)';
+  ctx.font = '9px sans-serif'; ctx.lineWidth = 1;
+  const first = Math.ceil(vs / step) * step;
+  for (let t = first; t <= vs + vd + 1e-9; t += step) {
+    const x = ((t - vs) / vd) * canvas.width;
+    ctx.beginPath(); ctx.moveTo(x, canvas.height * 0.35); ctx.lineTo(x, canvas.height); ctx.stroke();
+    const label = step < 1 ? (t.toFixed(step < 0.01 ? 3 : 2) + 's') : (t.toFixed(step < 10 ? 1 : 0) + 's');
+    ctx.fillText(label, Math.min(canvas.width - 24, Math.max(2, x + 2)), canvas.height * 0.8);
+  }
 }
 
 function _drawSedWaveform() {
@@ -7739,12 +7918,17 @@ function _drawSedWaveform() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   if (_sed.buf) {
     const data = _sed.buf.getChannelData(0);
-    const step = Math.max(1, Math.floor(data.length / canvas.width));
+    const sr = _sed.buf.sampleRate;
+    const vs = _sed.viewStart || 0, vd = _sed.viewDur || _sed.buf.duration;
+    const sampleStart = Math.max(0, Math.floor(vs * sr));
+    const sampleEnd   = Math.min(data.length, Math.ceil((vs + vd) * sr));
+    const span = Math.max(1, sampleEnd - sampleStart);
+    const step = Math.max(1, Math.floor(span / canvas.width));
     ctx.strokeStyle = 'rgba(200,160,255,.85)'; ctx.lineWidth = 1; ctx.beginPath();
     const mid = canvas.height / 2;
     for (let x = 0; x < canvas.width; x++) {
       let min = 1, max = -1;
-      const start = x * step;
+      const start = sampleStart + x * step;
       for (let i = 0; i < step; i++) { const v = data[start + i] || 0; if (v < min) min = v; if (v > max) max = v; }
       ctx.moveTo(x, mid + min * mid); ctx.lineTo(x, mid + max * mid);
     }
@@ -7775,12 +7959,19 @@ async function _drawSedWaveformStream() {
   const frameSize = bytesPerSample * h.numChannels;
   const totalFrames = Math.floor(h.dataSize / frameSize);
   if (totalFrames <= 0) return;
+  const dur = _sedDuration();
+  const vs = _sed.viewStart || 0, vd = _sed.viewDur || dur;
+  const frameStart = Math.max(0, Math.floor((vs / dur) * totalFrames));
+  const frameEnd    = Math.min(totalFrames, Math.ceil(((vs + vd) / dur) * totalFrames));
+  const viewFrames  = Math.max(1, frameEnd - frameStart);
   const numCols = Math.max(1, Math.min(300, canvas.width));
-  const winBytes = 2048; // fenêtre lue par colonne — borne le volume total transféré
+  // Fenêtre lue par colonne : plus on zoome, plus elle rétrécit (jamais plus
+  // que l'écart réel entre deux colonnes), le volume total transféré reste borné.
+  const winBytes = Math.max(bytesPerSample, Math.min(2048, Math.floor((viewFrames / numCols) * frameSize)));
   const cols = [];
   for (let c = 0; c < numCols; c++) {
-    const frameOffset = Math.floor((c / numCols) * totalFrames) * frameSize;
-    const byteStart = h.dataOffset + frameOffset;
+    const frameOffset = frameStart + Math.floor((c / numCols) * viewFrames);
+    const byteStart = h.dataOffset + frameOffset * frameSize;
     const byteEnd = Math.min(h.dataOffset + h.dataSize - 1, byteStart + winBytes - 1);
     cols.push({ c, byteStart, byteEnd, min: 0, max: 0 });
   }
@@ -7817,9 +8008,12 @@ async function _drawSedWaveformStream() {
 
 function _updateSedHandles() {
   const dur = _sedDuration(); if (!dur) return;
+  const vs = _sed.viewStart || 0, vd = _sed.viewDur || dur;
   const hin = document.getElementById('sed-handle-in'), hout = document.getElementById('sed-handle-out');
-  if (hin) hin.style.left = (100 * _sed.inSec / dur) + '%';
-  if (hout) hout.style.left = (100 * _sed.outSec / dur) + '%';
+  const pctIn  = Math.max(0, Math.min(1, (_sed.inSec  - vs) / vd));
+  const pctOut = Math.max(0, Math.min(1, (_sed.outSec - vs) / vd));
+  if (hin) hin.style.left = (100 * pctIn) + '%';
+  if (hout) hout.style.left = (100 * pctOut) + '%';
   const tin = document.getElementById('sed-time-in'), tout = document.getElementById('sed-time-out');
   if (tin) tin.textContent = _sed.inSec.toFixed(2) + 's';
   if (tout) tout.textContent = _sed.outSec.toFixed(2) + 's';
@@ -7833,29 +8027,48 @@ function _resetSedDurLabels() {
   if (dSel)   dSel.textContent   = '—';
 }
 
+// clientX → secondes, en tenant compte de la fenêtre visible (zoom/pan)
 function _sedPosToSec(clientX) {
   const wrap = document.getElementById('sed-wave-wrap');
   const r = wrap.getBoundingClientRect();
   const pct = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
-  return pct * _sedDuration();
+  const vs = _sed.viewStart || 0, vd = _sed.viewDur || _sedDuration();
+  return vs + pct * vd;
 }
 
 function _sedBindDrag() {
   if (_sed._bound) return;
   const hin = document.getElementById('sed-handle-in'), hout = document.getElementById('sed-handle-out');
-  if (!hin || !hout) return;
-  hin.onpointerdown  = (ev) => { _sed.dragging = 'in';  ev.preventDefault(); };
-  hout.onpointerdown = (ev) => { _sed.dragging = 'out'; ev.preventDefault(); };
+  const wrap = document.getElementById('sed-wave-wrap');
+  if (!hin || !hout || !wrap) return;
+  hin.onpointerdown  = (ev) => { _sed.dragging = 'in';  ev.preventDefault(); ev.stopPropagation(); };
+  hout.onpointerdown = (ev) => { _sed.dragging = 'out'; ev.preventDefault(); ev.stopPropagation(); };
+  // Pan : glisser le fond (hors poignées) déplace la fenêtre visible.
+  wrap.onpointerdown = (ev) => {
+    if (ev.target === hin || ev.target === hout) return;
+    if (!_sed.viewDur) return;
+    _sed.panning = true; _sed._panStartX = ev.clientX; _sed._panStartView = _sed.viewStart;
+    ev.preventDefault();
+  };
   window.addEventListener('pointermove', (ev) => {
-    const dur = _sedDuration();
-    if (!_sed.dragging || !dur) return;
-    const sec = _sedPosToSec(ev.clientX);
-    if (_sed.dragging === 'in')  _sed.inSec  = Math.min(sec, _sed.outSec - 0.01);
-    if (_sed.dragging === 'out') _sed.outSec = Math.max(sec, _sed.inSec + 0.01);
-    _sed.inSec = Math.max(0, _sed.inSec); _sed.outSec = Math.min(dur, _sed.outSec);
-    _updateSedHandles();
+    const dur = _sedDuration(); if (!dur) return;
+    if (_sed.dragging) {
+      const sec = _sedPosToSec(ev.clientX);
+      if (_sed.dragging === 'in')  _sed.inSec  = Math.min(sec, _sed.outSec - 0.01);
+      if (_sed.dragging === 'out') _sed.outSec = Math.max(sec, _sed.inSec + 0.01);
+      _sed.inSec = Math.max(0, _sed.inSec); _sed.outSec = Math.min(dur, _sed.outSec);
+      _updateSedHandles();
+      return;
+    }
+    if (_sed.panning) {
+      const wrapEl = document.getElementById('sed-wave-wrap'); if (!wrapEl) return;
+      const r = wrapEl.getBoundingClientRect();
+      const deltaSec = ((ev.clientX - _sed._panStartX) / r.width) * _sed.viewDur;
+      _sed.viewStart = Math.max(0, Math.min(dur - _sed.viewDur, _sed._panStartView - deltaSec));
+      _drawSedRuler(); _drawSedWaveform(); _updateSedHandles();
+    }
   });
-  window.addEventListener('pointerup', () => { _sed.dragging = null; });
+  window.addEventListener('pointerup', () => { _sed.dragging = null; _sed.panning = false; });
   _sed._bound = true;
 }
 
