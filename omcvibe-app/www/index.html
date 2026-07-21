@@ -1518,6 +1518,8 @@ body.theme-flux #cosmic-bg{filter:hue-rotate(150deg) saturate(1.3) brightness(.8
   background:rgba(1,3,6,.97);backdrop-filter:blur(14px);padding:14px;}
 #sample-editor-modal.open{display:flex;}
 .sed-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem;gap:.5rem;}
+.sed-dur-row{display:flex;justify-content:space-between;font-size:.7rem;color:rgba(220,200,255,.75);margin-bottom:.4rem;}
+.sed-dur-row b{color:#FFD060;font-weight:700;}
 .sed-title{font-family:'Cinzel Decorative',serif;font-size:.85rem;color:#F3D9FF;letter-spacing:.05em;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;}
 #sed-wave-wrap{position:relative;height:140px;background:rgba(0,0,0,.35);border:1px solid rgba(200,160,255,.2);
@@ -2047,6 +2049,10 @@ Lignes lumineuses colorées par ratio fréquentiel sacré.
     <div class="sed-title" id="sed-title">Découpe</div>
     <button class="panel-close canva-button" onclick="sampleEditorClose()">✕</button>
   </div>
+  <div class="sed-dur-row">
+    <span>Durée originale : <b id="sed-dur-total">—</b></span>
+    <span>Sélection : <b id="sed-dur-sel">—</b></span>
+  </div>
   <div id="sed-wave-wrap">
     <canvas id="sed-wave-canvas"></canvas>
     <div class="sed-handle" id="sed-handle-in" style="left:0%;"></div>
@@ -2142,20 +2148,21 @@ const PAIRS = [
     pingala:{id:'p6', ri:0, n:1.0, vol:.12}, ida:{id:'i6', delta:DELTA_DEFAULT, polarity:1,  vol:.12} },
 ];
 
-// Panoramique stéréo — éventail : chaque paire a un CENTRE distinct (gauche→droite),
-// Pingala/Ida légèrement écartés autour de ce centre (battement binaural aéré).
-// Modulé par RAND_OPTS.spread (largeur de l'éventail) au moment du random.
-const PAN_CENTERS = [-0.78, -0.50, -0.20, 0.20, 0.50, 0.78, 0.0]; // 6 paires + maître
-const PAN_SPREAD  = 0.10; // écart Pingala/Ida autour du centre
-function buildOscPan(width) {
-  const w = (typeof width === 'number') ? Math.max(0, Math.min(1, width)) : 0.7;
-  return PAN_CENTERS.map((ctr, i) => {
-    const c = i === MASTER_IDX ? 0 : ctr * w;
-    const sp = i === MASTER_IDX ? PAN_SPREAD * 0.5 : PAN_SPREAD;
-    return [Math.max(-1, c - sp), Math.min(1, c + sp)];
-  });
+// Séparation binaurale — Pingala (oreille DROITE) et Ida (oreille GAUCHE)
+// doivent être isolés à 100% sur leur canal respectif : un battement
+// binaural réel est un phénomène NEURONAL (les deux oreilles reçoivent
+// chacune une seule fréquence pure, le cerveau perçoit la différence).
+// Tout pan < ±1 fait fuiter les deux porteuses dans les deux oreilles à
+// la fois : elles interfèrent alors ACOUSTIQUEMENT et produisent un
+// trémolo audible dont le rythme suit le delta — perçu à tort comme un
+// tempo qui accélère/ralentit, au lieu du vrai battement binaural neuronal.
+// La largeur/éventail par paire est donc retirée du panning (elle reste
+// disponible ailleurs via le curseur "Largeur" par paire, cf setPair3DWidth).
+function buildOscPan() {
+  // [Pingala droit, Ida gauche] pour les 6 paires + le maître — toujours séparation totale
+  return [0, 1, 2, 3, 4, 5, 6].map(() => [1, -1]);
 }
-let OSC_PAN = buildOscPan(0.7);
+let OSC_PAN = buildOscPan();
 
 // Courbe isosonique : graves plus forts, aigus plus doux
 function isosonicVol(freq, base) {
@@ -2471,7 +2478,7 @@ function releaseOsc(node) {
 function swapPingala(i) {
   if (!flowing || !masterGain) return;
   const { pingala } = PAIRS[i];
-  const pan = (typeof OSC_PAN !== 'undefined' && OSC_PAN[i]) ? OSC_PAN[i][0] : -1;
+  const pan = (typeof OSC_PAN !== 'undefined' && OSC_PAN[i]) ? OSC_PAN[i][0] : 1;
   const vol = typeof isosonicVol === 'function' ? isosonicVol(calcPFreq(i), pingala.vol) : pingala.vol;
   if (nodes[pingala.id]) {
     tuneOsc(pingala.id, calcPFreq(i));
@@ -2485,7 +2492,7 @@ function swapPingala(i) {
 function swapIda(i) {
   if (!flowing || !masterGain) return;
   const { ida } = PAIRS[i];
-  const pan = (typeof OSC_PAN !== 'undefined' && OSC_PAN[i]) ? OSC_PAN[i][1] : 1;
+  const pan = (typeof OSC_PAN !== 'undefined' && OSC_PAN[i]) ? OSC_PAN[i][1] : -1;
   const vol = typeof isosonicVol === 'function' ? isosonicVol(calcIFreq(i), ida.vol) : ida.vol;
   if (nodes[ida.id]) {
     tuneOsc(ida.id, calcIFreq(i));
@@ -2881,12 +2888,15 @@ function setOscHPF(id, hz) {
   node.hpf.frequency.setTargetAtTime(Math.max(20, Math.min(2000, parseFloat(hz))), aNow(), 0.05);
 }
 function setPairHPF(i, hz) { setOscHPF(PAIRS[i].pingala.id, hz); setOscHPF(PAIRS[i].ida.id, hz); }
-// Stéréo 3D : largeur symétrique pingala/ida
+// Stéréo 3D : largeur symétrique pingala (droit) / ida (gauche) — 100% =
+// séparation binaurale totale (recommandé), en dessous = fuite acoustique
+// croissante entre les deux oreilles (le battement redevient audible en
+// trémolo au lieu de rester un phénomène neuronal).
 function setPair3DWidth(i, w) {
   const width = Math.max(0, Math.min(1, parseFloat(w))), now = aNow();
   const np = nodes[PAIRS[i].pingala.id], ni = nodes[PAIRS[i].ida.id];
-  if (np?.p) np.p.pan.setTargetAtTime(-width, now, 0.08);
-  if (ni?.p) ni.p.pan.setTargetAtTime( width, now, 0.08);
+  if (np?.p) np.p.pan.setTargetAtTime( width, now, 0.08);
+  if (ni?.p) ni.p.pan.setTargetAtTime(-width, now, 0.08);
 }
 function setPairFilter(i, cutoff, res) { setOscFilter(PAIRS[i].pingala.id, cutoff, res); setOscFilter(PAIRS[i].ida.id, cutoff, res); }
 
@@ -7558,7 +7568,7 @@ function sampleBankRandomGame() {
 }
 
 /* ---------- 9.8 · ÉDITEUR DE DÉCOUPE ---------- */
-let _sed = { folderId: null, idx: null, buf: null, big: false, wavHeader: null, wavUrl: null, inSec: 0, outSec: 0, dragging: null, previewSrc: null, _bound: false };
+let _sed = { folderId: null, idx: null, buf: null, big: false, wavHeader: null, wavUrl: null, inSec: 0, outSec: 0, dragging: null, previewSrc: null, _bound: false, _gen: 0 };
 
 function _sedDuration() {
   if (_sed.buf) return _sed.buf.duration;
@@ -7580,6 +7590,8 @@ function sampleEditorOpen(folderId, idx) {
     const titleEl = document.getElementById('sed-title'); if (titleEl) titleEl.textContent = f.name;
     const noteEl = document.getElementById('sed-note');
     const decodeBtn = document.getElementById('sed-decode-btn');
+    _resetSedDurLabels();
+    _sedBindDrag();
     _sed.folderId = folderId; _sed.idx = idx; _sed.buf = f.buf || null; _sed.big = f.mode === 'stream';
     _sed.wavHeader = null; _sed.wavUrl = null;
     _sed.inSec = 0; _sed.outSec = 0; _sed.dragging = null;
@@ -7665,7 +7677,7 @@ async function _sedTryWavFastPath(f) {
     if (!hdr) throw new Error("en-tête WAV non reconnu (seul le PCM entier non compressé est géré par la découpe rapide)");
     _sed.wavHeader = hdr; _sed.wavUrl = url;
     _sed.inSec = 0; _sed.outSec = _sedDuration();
-    if (noteEl) noteEl.textContent = 'Fichier volumineux (WAV) : découpe précise par plage d\'octets, sans décodage complet. Pas d\'aperçu visuel de la forme d\'onde dans ce mode.';
+    if (noteEl) noteEl.textContent = 'Fichier volumineux (WAV) : découpe précise par plage d\'octets, sans décodage complet. Forme d\'onde approximative (chargement…).';
     if (decodeBtn) decodeBtn.style.display = 'none';
     _drawSedWaveform();
     _updateSedHandles();
@@ -7711,6 +7723,12 @@ async function sampleEditorDecodeNow() {
 function sampleEditorClose() {
   const modal = document.getElementById('sample-editor-modal'); if (modal) modal.classList.remove('open');
   _sampleEditorStopPreview();
+  _sed._gen++; // annule un éventuel rendu de forme d'onde en cours (fetch par plages)
+}
+
+function _sedDrawFlatLine(canvas, ctx) {
+  ctx.strokeStyle = 'rgba(200,160,255,.35)'; ctx.lineWidth = 1; ctx.beginPath();
+  ctx.moveTo(0, canvas.height / 2); ctx.lineTo(canvas.width, canvas.height / 2); ctx.stroke();
 }
 
 function _drawSedWaveform() {
@@ -7719,25 +7737,82 @@ function _drawSedWaveform() {
   canvas.width = wrap.clientWidth; canvas.height = wrap.clientHeight;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (!_sed.buf) {
-    // Pas de PCM décodé (mode rapide gros WAV, ou en attente) : pas de
-    // vraie forme d'onde, juste une ligne neutre — la découpe reste
-    // précise (plage d'octets), seul l'aperçu visuel est indisponible.
-    ctx.strokeStyle = 'rgba(200,160,255,.35)'; ctx.lineWidth = 1; ctx.beginPath();
-    ctx.moveTo(0, canvas.height / 2); ctx.lineTo(canvas.width, canvas.height / 2); ctx.stroke();
+  if (_sed.buf) {
+    const data = _sed.buf.getChannelData(0);
+    const step = Math.max(1, Math.floor(data.length / canvas.width));
+    ctx.strokeStyle = 'rgba(200,160,255,.85)'; ctx.lineWidth = 1; ctx.beginPath();
+    const mid = canvas.height / 2;
+    for (let x = 0; x < canvas.width; x++) {
+      let min = 1, max = -1;
+      const start = x * step;
+      for (let i = 0; i < step; i++) { const v = data[start + i] || 0; if (v < min) min = v; if (v > max) max = v; }
+      ctx.moveTo(x, mid + min * mid); ctx.lineTo(x, mid + max * mid);
+    }
+    ctx.stroke();
     return;
   }
-  const data = _sed.buf.getChannelData(0);
-  const step = Math.max(1, Math.floor(data.length / canvas.width));
-  ctx.strokeStyle = 'rgba(200,160,255,.85)'; ctx.lineWidth = 1; ctx.beginPath();
-  const mid = canvas.height / 2;
-  for (let x = 0; x < canvas.width; x++) {
-    let min = 1, max = -1;
-    const start = x * step;
-    for (let i = 0; i < step; i++) { const v = data[start + i] || 0; if (v < min) min = v; if (v > max) max = v; }
-    ctx.moveTo(x, mid + min * mid); ctx.lineTo(x, mid + max * mid);
+  if (_sed.wavHeader && _sed.wavUrl) {
+    // Gros WAV (mode plage d'octets, pas de décodage complet) : on trace
+    // quand même une vraie forme d'onde en lisant seulement de petites
+    // fenêtres réparties le long du fichier (quelques centaines de Ko au
+    // total, quelle que soit la taille réelle du fichier).
+    _sedDrawFlatLine(canvas, ctx); // ligne neutre immédiate le temps du fetch
+    _drawSedWaveformStream();
+    return;
   }
+  // Ni PCM décodé, ni en-tête WAV connu (compressé en attente de décodage) :
+  // pas de vraie forme d'onde, juste une ligne neutre — la découpe reste
+  // précise une fois décodée, seul l'aperçu visuel est indisponible avant.
+  _sedDrawFlatLine(canvas, ctx);
+}
+
+async function _drawSedWaveformStream() {
+  const gen = ++_sed._gen;
+  const h = _sed.wavHeader, url = _sed.wavUrl;
+  const canvas = document.getElementById('sed-wave-canvas'); if (!canvas || !h || !url) return;
+  const bytesPerSample = h.bitsPerSample / 8;
+  if (bytesPerSample !== 1 && bytesPerSample !== 2) return; // 24/32 bits : hors périmètre de l'aperçu rapide
+  const frameSize = bytesPerSample * h.numChannels;
+  const totalFrames = Math.floor(h.dataSize / frameSize);
+  if (totalFrames <= 0) return;
+  const numCols = Math.max(1, Math.min(300, canvas.width));
+  const winBytes = 2048; // fenêtre lue par colonne — borne le volume total transféré
+  const cols = [];
+  for (let c = 0; c < numCols; c++) {
+    const frameOffset = Math.floor((c / numCols) * totalFrames) * frameSize;
+    const byteStart = h.dataOffset + frameOffset;
+    const byteEnd = Math.min(h.dataOffset + h.dataSize - 1, byteStart + winBytes - 1);
+    cols.push({ c, byteStart, byteEnd, min: 0, max: 0 });
+  }
+  const BATCH = 6;
+  for (let i = 0; i < cols.length; i += BATCH) {
+    if (gen !== _sed._gen) return; // éditeur fermé/rouvert entretemps : on abandonne
+    const batch = cols.slice(i, i + BATCH);
+    await Promise.all(batch.map(async (col) => {
+      try {
+        const raw = await _fetchRange(url, col.byteStart, col.byteEnd);
+        const dv = new DataView(raw);
+        const n = Math.floor(raw.byteLength / bytesPerSample);
+        let min = 0, max = 0;
+        for (let k = 0; k < n; k++) {
+          const v = bytesPerSample === 2 ? (dv.getInt16(k * 2, true) / 32768) : ((dv.getUint8(k) - 128) / 128);
+          if (v < min) min = v; if (v > max) max = v;
+        }
+        col.min = min; col.max = max;
+      } catch(e) { /* colonne indisponible : reste plate */ }
+    }));
+  }
+  if (gen !== _sed._gen) return;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const mid = canvas.height / 2;
+  ctx.strokeStyle = 'rgba(200,160,255,.85)'; ctx.lineWidth = 1; ctx.beginPath();
+  cols.forEach(col => { ctx.moveTo(col.c, mid + col.min * mid); ctx.lineTo(col.c, mid + col.max * mid); });
   ctx.stroke();
+  const noteEl = document.getElementById('sed-note');
+  if (noteEl && noteEl.textContent.indexOf('chargement') !== -1) {
+    noteEl.textContent = 'Fichier volumineux (WAV) : découpe précise par plage d\'octets, sans décodage complet.';
+  }
 }
 
 function _updateSedHandles() {
@@ -7748,6 +7823,14 @@ function _updateSedHandles() {
   const tin = document.getElementById('sed-time-in'), tout = document.getElementById('sed-time-out');
   if (tin) tin.textContent = _sed.inSec.toFixed(2) + 's';
   if (tout) tout.textContent = _sed.outSec.toFixed(2) + 's';
+  const dTotal = document.getElementById('sed-dur-total'), dSel = document.getElementById('sed-dur-sel');
+  if (dTotal) dTotal.textContent = dur.toFixed(2) + 's';
+  if (dSel)   dSel.textContent   = Math.max(0, _sed.outSec - _sed.inSec).toFixed(2) + 's';
+}
+function _resetSedDurLabels() {
+  const dTotal = document.getElementById('sed-dur-total'), dSel = document.getElementById('sed-dur-sel');
+  if (dTotal) dTotal.textContent = '—';
+  if (dSel)   dSel.textContent   = '—';
 }
 
 function _sedPosToSec(clientX) {
