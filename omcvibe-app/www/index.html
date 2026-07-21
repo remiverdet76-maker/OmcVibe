@@ -2314,9 +2314,15 @@ const OSC_ENGINES = {
   wide2:    [{t:'sine',d:-9,g:.62},{t:'sine',d:9,g:.62}],
   wide5:    [{t:'sine',d:-18,g:.30},{t:'sine',d:-9,g:.36},{t:'sine',d:0,g:.42},{t:'sine',d:9,g:.36},{t:'sine',d:18,g:.30}],
   defsin:   [{t:'sine',d:-13,g:.42},{t:'sine',d:0,g:.5},{t:'sine',d:13,g:.42}],
-  voixduo:  [{t:'sine',d:0,g:.62},{t:'sine',d:0,g:.5,r:3/2}],
-  voixtrio: [{t:'sine',d:0,g:.55},{t:'sine',d:0,g:.42,r:5/4},{t:'sine',d:0,g:.42,r:3/2}],
-  voixquat: [{t:'sine',d:0,g:.5},{t:'sine',d:0,g:.38,r:5/4},{t:'sine',d:0,g:.38,r:3/2},{t:'sine',d:0,g:.32,r:2}],
+  // Voix Duo/Trio/Quat — vrai unisson choral : toutes les voix restent sur
+  // LA MÊME fondamentale (aucun ratio harmonique empilé, contrairement à
+  // l'ancienne version qui ajoutait tierce/quinte/octave et dénaturait la
+  // fréquence ciblée). L'épaisseur vient d'un détune fin et volontairement
+  // asymétrique (comme de vraies voix qui ne dérivent jamais symétriquement),
+  // resserré par rapport à Wide (qui vise un effet stéréo large, pas choral).
+  voixduo:  [{t:'sine',d:-5,g:.62},{t:'sine',d:6,g:.62}],
+  voixtrio: [{t:'sine',d:-8,g:.48},{t:'sine',d:2,g:.55},{t:'sine',d:9,g:.44}],
+  voixquat: [{t:'sine',d:-12,g:.40},{t:'sine',d:-4,g:.44},{t:'sine',d:5,g:.42},{t:'sine',d:13,g:.38}],
   // FM Sinus — réservé au réglage manuel (non tiré par le jeu aléatoire).
   // Représentation nominale ici ; le vrai moteur FM (porteuse + modulateur
   // doux, tous deux sinus) est construit à part dans buildOsc().
