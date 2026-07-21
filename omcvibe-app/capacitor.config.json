@@ -1,0 +1,8 @@
+{
+  "appId": "org.watcha.omcvibe",
+  "appName": "OmcVibe 181",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  }
+}

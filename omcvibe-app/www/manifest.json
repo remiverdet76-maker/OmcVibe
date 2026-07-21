@@ -1,0 +1,9 @@
+{
+  "name": "OmcVibe 181",
+  "short_name": "OmcVibe",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#02010D",
+  "theme_color": "#02010D",
+  "orientation": "any"
+}
