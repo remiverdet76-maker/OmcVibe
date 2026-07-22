@@ -1,0 +1,9 @@
+{
+  "name": "OmchaWatch",
+  "short_name": "OmchaWatch",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#050212",
+  "theme_color": "#050212"
+}

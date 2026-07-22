@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>OmchaWatch</title>
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#050212" />
+<style>
+  :root {
+    --panel-bg: rgba(10, 6, 24, 0.92);
+    --accent: #ffd76a;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    background: #050212;
+    overflow: hidden;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #omcha-canvas { position: fixed; inset: 0; display: block; touch-action: none; }
+
+  .icon-btn {
+    position: fixed; top: env(safe-area-inset-top, 12px);
+    width: 44px; height: 44px; border-radius: 50%;
+    background: rgba(20, 12, 40, 0.55); border: 1px solid rgba(255,255,255,0.15);
+    color: #fff; font-size: 20px; display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(6px); cursor: pointer; z-index: 20;
+  }
+  #btn-settings { right: 12px; margin-top: 12px; }
+  #btn-info { right: 64px; margin-top: 12px; }
+
+  .drawer {
+    position: fixed; top: 0; right: 0; height: 100%; width: min(340px, 88vw);
+    background: var(--panel-bg); border-left: 1px solid rgba(255,255,255,0.12);
+    transform: translateX(100%); transition: transform 0.28s ease;
+    z-index: 30; overflow-y: auto; padding: 18px 16px 40px;
+    backdrop-filter: blur(10px);
+  }
+  .drawer.open { transform: translateX(0); }
+  .drawer h2 { color: #fff; font-size: 17px; margin: 4px 0 14px; letter-spacing: 0.5px; }
+  .drawer h3 { color: var(--accent); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 18px 0 8px; }
+  .drawer .close { position: absolute; top: 10px; right: 10px; }
+  .row { display: flex; align-items: center; justify-content: space-between; margin: 6px 0; color: #eee; font-size: 13px; }
+  .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .swatches label { display: flex; flex-direction: column; align-items: center; font-size: 10px; color: #cbc4e0; gap: 4px; }
+  input[type=color] { width: 34px; height: 34px; border: none; border-radius: 8px; background: none; padding: 0; cursor: pointer; }
+  input[type=range] { width: 140px; }
+  .btn {
+    width: 100%; margin-top: 8px; padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.06); color: #fff; font-size: 13px; cursor: pointer;
+  }
+  .btn:active { background: rgba(255,255,255,0.14); }
+
+  #info-panel.drawer { left: 0; right: auto; border-left: none; border-right: 1px solid rgba(255,255,255,0.12); transform: translateX(-100%); }
+  #info-panel.drawer.open { transform: translateX(0); }
+  .info-grid { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; font-size: 12.5px; color: #ddd6f3; }
+  .info-grid b { color: var(--accent); font-weight: 600; }
+  #info-panel p { font-size: 12px; color: #b8b0d8; line-height: 1.5; }
+</style>
+</head>
+<body>
+  <canvas id="omcha-canvas"></canvas>
+
+  <button id="btn-settings" class="icon-btn" aria-label="Réglages">⚙</button>
+  <button id="btn-info" class="icon-btn" aria-label="Infos">𝓲</button>
+
+  <div id="settings-panel" class="drawer">
+    <button id="btn-close-settings" class="icon-btn close" aria-label="Fermer">✕</button>
+    <h2>Réglages · OmchaWatch</h2>
+
+    <h3>Sphère &amp; respiration</h3>
+    <div class="row">Sphère (PcV) <input type="color" id="color-sphere" /></div>
+    <div class="row">Anneau CV <input type="color" id="color-cv" /></div>
+
+    <h3>Anneau Omc (4 phases)</h3>
+    <div class="swatches">
+      <label>Expansion douce<input type="color" id="color-omc-0" /></label>
+      <label>Expansion charm.<input type="color" id="color-omc-1" /></label>
+      <label>Contraction douce<input type="color" id="color-omc-2" /></label>
+      <label>Contraction charm.<input type="color" id="color-omc-3" /></label>
+    </div>
+
+    <h3>Anneau OmcV (saisons)</h3>
+    <div class="swatches">
+      <label>Équ.→Solst. été<input type="color" id="color-omcv-0" /></label>
+      <label>Été→Équinoxe<input type="color" id="color-omcv-1" /></label>
+      <label>Équ.→Solst. hiver<input type="color" id="color-omcv-2" /></label>
+      <label>Hiver→Équinoxe<input type="color" id="color-omcv-3" /></label>
+    </div>
+
+    <h3>Flux lumineux</h3>
+    <div class="row">Intensité du halo
+      <input type="range" id="glow-slider" min="0.4" max="2" step="0.05" />
+    </div>
+
+    <h3>Fond d'écran</h3>
+    <label class="btn" style="display:block; text-align:center;">
+      Importer une image
+      <input type="file" id="wallpaper-input" accept="image/*" style="display:none;" />
+    </label>
+    <button id="wallpaper-reset" class="btn">Réinitialiser (mandala par défaut)</button>
+
+    <h3>&nbsp;</h3>
+    <button id="btn-reset-colors" class="btn">Réinitialiser les couleurs</button>
+  </div>
+
+  <div id="info-panel" class="drawer">
+    <h2>OmchaWatch · unités</h2>
+    <p>Horloge fractale indépendante de 24/60/60/365. Chaque anneau respire selon
+    4 phases régies par les ratios 11/10 · 6/5 · 10/11 · 5/6 (somme ≈ 4,04 Solondes/PcV).</p>
+    <div class="info-grid">
+      <span>Solondes écoulées</span><b id="info-solondes">0</b>
+      <span>PcV (battement, ≈1s)</span><b id="info-pcv">0</b>
+      <span>CV dans le cycle Omc</span><b id="info-cv">0</b>
+      <span>Omc cumulés (≈43,2h)</span><b id="info-omc">0</b>
+      <span>OmcV cumulés (≈648j)</span><b id="info-omcv">0</b>
+      <span>Phase Omc</span><b id="info-phase-omc">—</b>
+      <span>Phase OmcV</span><b id="info-phase-omcv">—</b>
+    </div>
+  </div>
+
+  <script src="omcha-time.js"></script>
+  <script src="omcha-render.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
