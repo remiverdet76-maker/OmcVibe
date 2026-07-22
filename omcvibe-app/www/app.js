@@ -9,6 +9,9 @@
     omcColor: '#8b2fe0',  // violet — grand anneau extérieur Omc (432)
     wallpaper: 'default',
     glowBoost: 1,
+    cometSize: 1,
+    ringWidth: 1,
+    showNumbers: true,
     timeScale: 1,
   };
 
@@ -62,12 +65,14 @@
     const img = new Image();
     img.onload = () => {
       if (isDefault) {
-        // Image sans chiffres : recadrage large sur la fleur + sphère +
-        // double anneau doré, jusqu'à la bordure scintillante.
-        const half = img.width * 0.465;
+        // Centre mesuré sur l'image de référence (sphère dorée : centre
+        // exact, pas une estimation) pour que nos anneaux fonctionnels
+        // coïncident précisément avec la sphère et le double anneau doré
+        // déjà présents dans l'image.
+        const half = img.width * 0.4932;
         img.__omchaCrop = {
           sx: img.width * 0.5 - half,
-          sy: img.height * 0.423 - half,
+          sy: img.height * 0.4499 - half,
           sw: half * 2,
           sh: half * 2,
         };
@@ -122,6 +127,27 @@
     saveSettings(state.settings);
   });
 
+  const cometSlider = document.getElementById('comet-slider');
+  cometSlider.value = state.settings.cometSize;
+  cometSlider.addEventListener('input', () => {
+    state.settings.cometSize = parseFloat(cometSlider.value);
+    saveSettings(state.settings);
+  });
+
+  const widthSlider = document.getElementById('width-slider');
+  widthSlider.value = state.settings.ringWidth;
+  widthSlider.addEventListener('input', () => {
+    state.settings.ringWidth = parseFloat(widthSlider.value);
+    saveSettings(state.settings);
+  });
+
+  const numbersToggle = document.getElementById('numbers-toggle');
+  numbersToggle.checked = state.settings.showNumbers;
+  numbersToggle.addEventListener('change', () => {
+    state.settings.showNumbers = numbersToggle.checked;
+    saveSettings(state.settings);
+  });
+
   const wallpaperInput = document.getElementById('wallpaper-input');
   wallpaperInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
@@ -159,6 +185,9 @@
       omcColor: DEFAULTS.omcColor,
       omcvColor: DEFAULTS.omcvColor,
       glowBoost: DEFAULTS.glowBoost,
+      cometSize: DEFAULTS.cometSize,
+      ringWidth: DEFAULTS.ringWidth,
+      showNumbers: DEFAULTS.showNumbers,
     })) };
     saveSettings(state.settings);
     location.reload();
