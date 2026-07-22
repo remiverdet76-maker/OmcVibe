@@ -55,6 +55,17 @@
   }
   .btn:active { background: rgba(255,255,255,0.14); }
 
+  #app-title {
+    position: fixed; top: 0; left: 0; right: 0; text-align: center;
+    margin: 0; padding-top: max(env(safe-area-inset-top, 0px), 14px);
+    font-family: Georgia, 'Times New Roman', serif; font-weight: 700;
+    font-size: clamp(26px, 7.5vw, 38px); letter-spacing: 1px;
+    background: linear-gradient(180deg, #fff3c4 0%, #ffcd5c 45%, #d98324 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 0 12px rgba(255, 183, 3, 0.5));
+    pointer-events: none; -webkit-user-select: none; user-select: none; z-index: 5;
+  }
+
   #info-panel.drawer { left: 0; right: auto; border-left: none; border-right: 1px solid rgba(255,255,255,0.12); transform: translateX(-100%); }
   #info-panel.drawer.open { transform: translateX(0); }
   .info-grid { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; font-size: 12.5px; color: #ddd6f3; }
@@ -64,6 +75,7 @@
 </head>
 <body>
   <canvas id="omcha-canvas"></canvas>
+  <h1 id="app-title">OmchaWatch</h1>
 
   <button id="btn-settings" class="icon-btn" aria-label="Réglages">⚙</button>
   <button id="btn-info" class="icon-btn" aria-label="Infos">𝓲</button>

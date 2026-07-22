@@ -31,25 +31,49 @@ const OmchaRenderer = (() => {
     ctx.restore();
   }
 
-  // 4 arcs colorés (phases), avec un léger flou de transition entre eux.
+  // 4 arcs colorés (phases) en teinte plate et franche — pas de dégradé,
+  // pour une bande épaisse et lisible comme une horloge, pas un halo flou.
   function drawPhaseArcs(ctx, cx, cy, r, colors, width) {
     ctx.save();
     ctx.lineWidth = width;
     ctx.lineCap = 'butt';
     for (let q = 0; q < 4; q++) {
-      const a0 = toRad(q * 90);
-      const a1 = toRad((q + 1) * 90);
-      const grad = ctx.createLinearGradient(
-        ...polar(cx, cy, r, q * 90),
-        ...polar(cx, cy, r, (q + 1) * 90)
-      );
-      grad.addColorStop(0, rgba(colors[q], 0.85));
-      grad.addColorStop(1, rgba(colors[(q + 1) % 4], 0.85));
-      ctx.strokeStyle = grad;
+      ctx.strokeStyle = rgba(colors[q], 0.95);
       ctx.beginPath();
-      ctx.arc(cx, cy, r, a0, a1);
+      ctx.arc(cx, cy, r, toRad(q * 90), toRad((q + 1) * 90));
       ctx.stroke();
     }
+    // Fin liseré sombre entre chaque quart pour bien les séparer visuellement.
+    ctx.strokeStyle = 'rgba(4,2,10,0.9)';
+    ctx.lineWidth = Math.max(2, width * 0.06);
+    [0, 90, 180, 270].forEach((d) => {
+      const a = toRad(d);
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, a - 0.01, a + 0.01);
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  // Badge circulaire (chip) pour les repères majeurs, façon mockup.
+  function drawBadge(ctx, cx, cy, r, deg, text, color) {
+    const [x, y] = polar(cx, cy, r, deg);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, 26, 0, TAU);
+    ctx.fillStyle = 'rgba(8,4,18,0.82)';
+    ctx.fill();
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = rgba(color, 0.95);
+    ctx.shadowColor = rgba(color, 0.8);
+    ctx.shadowBlur = 10;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.font = "700 18px 'Segoe UI', system-ui, sans-serif";
+    ctx.fillStyle = rgba(color, 1);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x, y);
     ctx.restore();
   }
 
@@ -168,6 +192,12 @@ const OmchaRenderer = (() => {
     ctx.restore();
   }
 
+  // Centre partagé par le fond et les anneaux : décalé vers le bas pour
+  // laisser la place au titre "OmchaWatch" en haut d'écran.
+  function centerFor(w, h) {
+    return { cx: w / 2, cy: h * 0.55, R: Math.min(w, h) * 0.43 };
+  }
+
   // Construit une fois (au chargement/resize) un fond statique : dégradé
   // cosmique + étoiles générées + la fleur source, détourée et adoucie au
   // centre — sans jamais réutiliser les chiffres mal placés de l'image
@@ -176,7 +206,7 @@ const OmchaRenderer = (() => {
     const oc = document.createElement('canvas');
     oc.width = w; oc.height = h;
     const c = oc.getContext('2d');
-    const cx = w / 2, cy = h / 2;
+    const { cx, cy } = centerFor(w, h);
 
     const g = c.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.8);
     g.addColorStop(0, '#1a0e33');
@@ -200,7 +230,7 @@ const OmchaRenderer = (() => {
     }
 
     if (bgImage) {
-      const coreR = Math.min(w, h) * 0.40;
+      const coreR = Math.min(w, h) * 0.37;
       const tmp = document.createElement('canvas');
       tmp.width = w; tmp.height = h;
       const t = tmp.getContext('2d');
@@ -233,40 +263,39 @@ const OmchaRenderer = (() => {
       ctx.fillRect(0, 0, w, h);
     }
 
-    const cx = w / 2;
-    const cy = h / 2;
-    const R = Math.min(w, h) * 0.46;
+    const { cx, cy, R } = centerFor(w, h);
 
-    const rSphere = R * 0.17;
-    const rCV = R * 0.42;
-    const rOmc = R * 0.68;
-    const rOmcV = R * 0.93;
+    const rSphere = R * 0.16;
+    const rCV = R * 0.40;
+    const rOmc = R * 0.66;
+    const rOmcV = R * 0.92;
     const glowBoost = settings.glowBoost || 1;
 
-    // --- Anneau OmcV (saisons, extérieur) ---
-    drawPhaseArcs(ctx, cx, cy, rOmcV, settings.omcvColors, 10);
-    drawTicks(ctx, cx, cy, rOmcV, [0, 90, 180, 270], '#ffffff', 14, 2);
+    // --- Anneau OmcV (saisons, extérieur) — bande large ---
+    drawPhaseArcs(ctx, cx, cy, rOmcV, settings.omcvColors, 26);
     [0, 90, 180, 270].forEach((d) => {
-      drawLabel(ctx, cx, cy, rOmcV + 26, d, String(d), '#ffffff', 15);
+      drawLabel(ctx, cx, cy, rOmcV, d, String(d), '#ffffff', 20);
     });
-    drawHaloDot(ctx, cx, cy, rOmcV, snap.omcvFrac * 360, settings.omcvColors[snap.omcvQuarter.q], {
-      dotRadius: 6, glow: (0.6 + 0.4 * snap.omcvBreathe) * glowBoost, trailDeg: 55, trailWidth: 5,
+    drawHaloDot(ctx, cx, cy, rOmcV, snap.omcvFrac * 360, '#ffffff', {
+      dotRadius: 7, glow: (0.6 + 0.4 * snap.omcvBreathe) * glowBoost, trailDeg: 30, trailWidth: 5,
     });
+    drawBadge(ctx, cx, cy, rOmcV + 44, 0, '360', settings.omcvColors[3]);
+    drawBadge(ctx, cx, cy, rOmcV + 44, 180, '180', settings.omcvColors[1]);
 
-    // --- Anneau Omc (jour charmant, 12 chiffres) ---
-    drawPhaseArcs(ctx, cx, cy, rOmc, settings.omcColors, 16);
+    // --- Anneau Omc (jour charmant, 12 chiffres) — bande large ---
+    drawPhaseArcs(ctx, cx, cy, rOmc, settings.omcColors, 30);
     for (let i = 1; i <= 12; i++) {
       const val = i * 36; // 36..432
       const deg = (val / 432) * 360;
-      const label = val === 432 ? '0' : String(val);
-      drawLabel(ctx, cx, cy, rOmc, deg, label, '#fff8e6', 17);
+      const isBoundary = val % 108 === 0; // 108/216/324/432 : partagés avec l'anneau OmcV
+      drawLabel(ctx, cx, cy, rOmc, deg, String(val), '#ffffff', isBoundary ? 24 : 16);
     }
-    drawHaloDot(ctx, cx, cy, rOmc, snap.omcFrac * 360, settings.omcColors[snap.omcQuarter.q], {
-      dotRadius: 8, glow: (0.6 + 0.4 * snap.omcBreathe) * glowBoost, trailDeg: 45, trailWidth: 7,
+    drawHaloDot(ctx, cx, cy, rOmc, snap.omcFrac * 360, '#ffffff', {
+      dotRadius: 8, glow: (0.6 + 0.4 * snap.omcBreathe) * glowBoost, trailDeg: 26, trailWidth: 6,
     });
 
     // --- Anneau CV (respiration) ---
-    drawRingTrack(ctx, cx, cy, rCV, settings.cvColor, 3, 0.5);
+    drawRingTrack(ctx, cx, cy, rCV, settings.cvColor, 4, 0.55);
     drawTicks(ctx, cx, cy, rCV, [0, 90, 180, 270], settings.cvColor, 10, 2);
     drawHaloDot(ctx, cx, cy, rCV, snap.cvFrac * 360, settings.cvColor, {
       dotRadius: 6, glow: (0.5 + 0.5 * snap.cvBreathe) * glowBoost, trailDeg: 35, trailWidth: 5,
@@ -275,7 +304,9 @@ const OmchaRenderer = (() => {
     // --- Sphère centrale (PcV) ---
     drawSphere(ctx, cx, cy, rSphere, settings.sphereColor, snap.pcvBreathe, snap.flashFrac, settings.sphereColor);
     drawCenterText(ctx, cx, cy, '', snap.omc.toFixed(1), settings.sphereColor);
+
+    return { cx, cy, R };
   }
 
-  return { render, buildBackground };
+  return { render, buildBackground, centerFor };
 })();
