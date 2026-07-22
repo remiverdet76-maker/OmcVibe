@@ -212,8 +212,7 @@ const OmchaRenderer = (() => {
       t.globalCompositeOperation = 'destination-in';
       const mg = t.createRadialGradient(cx, cy, 0, cx, cy, coreR);
       mg.addColorStop(0, 'rgba(0,0,0,1)');
-      mg.addColorStop(0.5, 'rgba(0,0,0,1)');
-      mg.addColorStop(0.72, 'rgba(0,0,0,0.55)');
+      mg.addColorStop(0.82, 'rgba(0,0,0,1)');
       mg.addColorStop(1, 'rgba(0,0,0,0)');
       t.fillStyle = mg;
       t.beginPath();

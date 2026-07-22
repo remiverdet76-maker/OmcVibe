@@ -67,12 +67,12 @@
     const img = new Image();
     img.onload = () => {
       if (isDefault) {
-        // Recadrage serré sur la fleur centrale, avant les anneaux chiffrés
-        // (mal placés) de l'image générée par IA.
-        const half = img.width * 0.195;
+        // Image sans chiffres : recadrage large sur la fleur + sphère +
+        // double anneau doré, jusqu'à la bordure scintillante.
+        const half = img.width * 0.465;
         img.__omchaCrop = {
           sx: img.width * 0.5 - half,
-          sy: img.height * 0.475 - half,
+          sy: img.height * 0.423 - half,
           sw: half * 2,
           sh: half * 2,
         };
