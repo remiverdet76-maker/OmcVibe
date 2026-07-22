@@ -31,30 +31,6 @@ const OmchaRenderer = (() => {
     ctx.restore();
   }
 
-  // 4 arcs colorés (phases) en teinte plate et franche — pas de dégradé,
-  // pour une bande épaisse et lisible comme une horloge, pas un halo flou.
-  function drawPhaseArcs(ctx, cx, cy, r, colors, width) {
-    ctx.save();
-    ctx.lineWidth = width;
-    ctx.lineCap = 'butt';
-    for (let q = 0; q < 4; q++) {
-      ctx.strokeStyle = rgba(colors[q], 0.95);
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, toRad(q * 90), toRad((q + 1) * 90));
-      ctx.stroke();
-    }
-    // Fin liseré sombre entre chaque quart pour bien les séparer visuellement.
-    ctx.strokeStyle = 'rgba(4,2,10,0.9)';
-    ctx.lineWidth = Math.max(2, width * 0.06);
-    [0, 90, 180, 270].forEach((d) => {
-      const a = toRad(d);
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, a - 0.01, a + 0.01);
-      ctx.stroke();
-    });
-    ctx.restore();
-  }
-
   // Badge circulaire (chip) pour les repères majeurs, façon mockup.
   function drawBadge(ctx, cx, cy, r, deg, text, color) {
     const [x, y] = polar(cx, cy, r, deg);
@@ -74,21 +50,6 @@ const OmchaRenderer = (() => {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(text, x, y);
-    ctx.restore();
-  }
-
-  function drawTicks(ctx, cx, cy, r, degs, color, len = 10, lw = 2) {
-    ctx.save();
-    ctx.strokeStyle = rgba(color, 0.9);
-    ctx.lineWidth = lw;
-    degs.forEach((d) => {
-      const [x0, y0] = polar(cx, cy, r - len / 2, d);
-      const [x1, y1] = polar(cx, cy, r + len / 2, d);
-      ctx.beginPath();
-      ctx.moveTo(x0, y0);
-      ctx.lineTo(x1, y1);
-      ctx.stroke();
-    });
     ctx.restore();
   }
 
@@ -265,39 +226,41 @@ const OmchaRenderer = (() => {
 
     const { cx, cy, R } = centerFor(w, h);
 
-    const rSphere = R * 0.16;
-    const rCV = R * 0.40;
-    const rOmc = R * 0.66;
-    const rOmcV = R * 0.92;
+    // Ordre du centre vers l'extérieur : sphère → CV(rouge) → OmcV(vert,360)
+    // → Omc(violet,432), bandes pleines et serrées comme le mandala de
+    // référence — pas de dégradé par quart, une couleur unie par anneau.
+    const rSphere = R * 0.17;
+    const rCV = R * 0.36;
+    const rOmcV = R * 0.68;
+    const rOmc = R * 0.87;
     const glowBoost = settings.glowBoost || 1;
 
-    // --- Anneau OmcV (saisons, extérieur) — bande large ---
-    drawPhaseArcs(ctx, cx, cy, rOmcV, settings.omcvColors, 26);
+    // --- Anneau Omc (432, extérieur, violet) ---
+    drawRingTrack(ctx, cx, cy, rOmc, settings.omcColor, 30, 0.95);
+    for (let i = 1; i <= 12; i++) {
+      const val = i * 36; // 36..432
+      const deg = (val / 432) * 360;
+      const isBoundary = val % 108 === 0; // 108/216/324/432 : repères majeurs
+      drawLabel(ctx, cx, cy, rOmc, deg, String(val), '#ffffff', isBoundary ? 24 : 15);
+    }
+    drawHaloDot(ctx, cx, cy, rOmc, snap.omcFrac * 360, '#ffffff', {
+      dotRadius: 8, glow: (0.6 + 0.4 * snap.omcBreathe) * glowBoost, trailDeg: 26, trailWidth: 6,
+    });
+    drawBadge(ctx, cx, cy, rOmc + 42, 0, '432', settings.omcColor);
+    drawBadge(ctx, cx, cy, rOmc + 42, 180, '216', settings.omcColor);
+
+    // --- Anneau OmcV (360, vert) ---
+    drawRingTrack(ctx, cx, cy, rOmcV, settings.omcvColor, 30, 0.95);
     [0, 90, 180, 270].forEach((d) => {
       drawLabel(ctx, cx, cy, rOmcV, d, String(d), '#ffffff', 20);
     });
     drawHaloDot(ctx, cx, cy, rOmcV, snap.omcvFrac * 360, '#ffffff', {
       dotRadius: 7, glow: (0.6 + 0.4 * snap.omcvBreathe) * glowBoost, trailDeg: 30, trailWidth: 5,
     });
-    drawBadge(ctx, cx, cy, rOmcV + 44, 0, '360', settings.omcvColors[3]);
-    drawBadge(ctx, cx, cy, rOmcV + 44, 180, '180', settings.omcvColors[1]);
 
-    // --- Anneau Omc (jour charmant, 12 chiffres) — bande large ---
-    drawPhaseArcs(ctx, cx, cy, rOmc, settings.omcColors, 30);
-    for (let i = 1; i <= 12; i++) {
-      const val = i * 36; // 36..432
-      const deg = (val / 432) * 360;
-      const isBoundary = val % 108 === 0; // 108/216/324/432 : partagés avec l'anneau OmcV
-      drawLabel(ctx, cx, cy, rOmc, deg, String(val), '#ffffff', isBoundary ? 24 : 16);
-    }
-    drawHaloDot(ctx, cx, cy, rOmc, snap.omcFrac * 360, '#ffffff', {
-      dotRadius: 8, glow: (0.6 + 0.4 * snap.omcBreathe) * glowBoost, trailDeg: 26, trailWidth: 6,
-    });
-
-    // --- Anneau CV (respiration) ---
-    drawRingTrack(ctx, cx, cy, rCV, settings.cvColor, 4, 0.55);
-    drawTicks(ctx, cx, cy, rCV, [0, 90, 180, 270], settings.cvColor, 10, 2);
-    drawHaloDot(ctx, cx, cy, rCV, snap.cvFrac * 360, settings.cvColor, {
+    // --- Anneau CV (respiration, rouge, intérieur) ---
+    drawRingTrack(ctx, cx, cy, rCV, settings.cvColor, 22, 0.95);
+    drawHaloDot(ctx, cx, cy, rCV, snap.cvFrac * 360, '#ffffff', {
       dotRadius: 6, glow: (0.5 + 0.5 * snap.cvBreathe) * glowBoost, trailDeg: 35, trailWidth: 5,
     });
 

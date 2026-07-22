@@ -4,9 +4,9 @@
 
   const DEFAULTS = {
     sphereColor: '#ffd76a',
-    cvColor: '#4fd1c5',
-    omcColors: ['#f7b733', '#ffe66d', '#ff6f61', '#8a63d2'],
-    omcvColors: ['#7bd389', '#f4a259', '#6ec6ff', '#b892ff'],
+    cvColor: '#ff3b3b',   // rouge — anneau intérieur (respiration)
+    omcvColor: '#39c94f', // vert — anneau OmcV (360)
+    omcColor: '#8b2fe0',  // violet — grand anneau extérieur Omc (432)
     wallpaper: 'default',
     glowBoost: 1,
     timeScale: 1,
@@ -17,12 +17,7 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return { ...DEFAULTS };
       const parsed = JSON.parse(raw);
-      return {
-        ...DEFAULTS,
-        ...parsed,
-        omcColors: parsed.omcColors && parsed.omcColors.length === 4 ? parsed.omcColors : DEFAULTS.omcColors,
-        omcvColors: parsed.omcvColors && parsed.omcvColors.length === 4 ? parsed.omcvColors : DEFAULTS.omcvColors,
-      };
+      return { ...DEFAULTS, ...parsed };
     } catch (e) {
       return { ...DEFAULTS };
     }
@@ -117,13 +112,8 @@
   }
   bindColor('color-sphere', () => state.settings.sphereColor, (v) => { state.settings.sphereColor = v; });
   bindColor('color-cv', () => state.settings.cvColor, (v) => { state.settings.cvColor = v; });
-  ['omc', 'omcv'].forEach((ring) => {
-    for (let i = 0; i < 4; i++) {
-      bindColor(`color-${ring}-${i}`,
-        () => state.settings[`${ring}Colors`][i],
-        (v) => { state.settings[`${ring}Colors`][i] = v; });
-    }
-  });
+  bindColor('color-omcv', () => state.settings.omcvColor, (v) => { state.settings.omcvColor = v; });
+  bindColor('color-omc', () => state.settings.omcColor, (v) => { state.settings.omcColor = v; });
 
   const glowSlider = document.getElementById('glow-slider');
   glowSlider.value = state.settings.glowBoost;
@@ -166,8 +156,8 @@
     state.settings = { ...state.settings, ...JSON.parse(JSON.stringify({
       sphereColor: DEFAULTS.sphereColor,
       cvColor: DEFAULTS.cvColor,
-      omcColors: DEFAULTS.omcColors,
-      omcvColors: DEFAULTS.omcvColors,
+      omcColor: DEFAULTS.omcColor,
+      omcvColor: DEFAULTS.omcvColor,
       glowBoost: DEFAULTS.glowBoost,
     })) };
     saveSettings(state.settings);
