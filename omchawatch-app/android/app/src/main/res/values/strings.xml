@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">OmchaWatch</string>
+    <string name="title_activity_main">OmchaWatch</string>
+    <string name="package_name">org.watcha.omchawatch</string>
+    <string name="custom_url_scheme">org.watcha.omchawatch</string>
+</resources>
