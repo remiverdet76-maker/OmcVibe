@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Éphémérides Organiques - Calculateur de Jours</title>
+    <style>
+        :root {
+            --primary: #e67e22;
+            --secondary: #3498db;
+            --accent: #2ecc71;
+            --background: #f5f7fa;
+            --card: #e8f4f8;
+            --text: #2c3e50;
+            --shadow: rgba(46, 204, 113, 0.3);
+            --gradient-start: #f1c40f;
+            --gradient-end: #e74c3c;
+            --border: #3498db;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3e8f5 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: var(--text);
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px 0;
+        }
+
+        h1 {
+            font-size: 2.8em;
+            color: var(--primary);
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px var(--shadow);
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            color: var(--secondary);
+            font-style: italic;
+            margin-bottom: 20px;
+        }
+
+        .description {
+            background: white;
+            padding: 15px 25px;
+            border-radius: 12px;
+            margin: 20px auto;
+            max-width: 800px;
+            box-shadow: 0 8px 20px rgba(46, 204, 113, 0.2);
+            border-left: 5px solid var(--accent);
+        }
+
+        .calculator-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .calculator-card {
+            background: var(--card);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(46, 204, 113, 0.2);
+            border: 2px solid var(--border);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .calculator-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(46, 204, 113, 0.3);
+        }
+
+        .calculator-card h2 {
+            color: var(--primary);
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            text-align: center;
+            padding-bottom: 15px;
+            border-bottom: 3px solid var(--secondary);
+            border-radius: 5px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text);
+            font-size: 1.05em;
+        }
+
+        input[type="date"],
+        input[type="number"] {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 1.1em;
+            background: white;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        input[type="date"]:focus,
+        input[type="number"]:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(46, 204, 113, 0.2);
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 15px;
+            margin: 15px 0;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .radio-option input {
+            width: auto;
+            accent-color: var(--accent);
+        }
+
+        .radio-option label {
+            font-weight: normal;
+            margin: 0;
+            cursor: pointer;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px 20px;
+            background: linear-gradient(45deg, var(--gradient-start), var(--gradient-end));
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(241, 196, 15, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .result {
+            margin-top: 25px;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            text-align: center;
+            border: 2px solid var(--accent);
+            box-shadow: 0 5px 15px rgba(46, 204, 113, 0.1);
+        }
+
+        .result-value {
+            font-size: 2.2em;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 10px 0;
+        }
+
+        .result-label {
+            font-size: 1.1em;
+            color: var(--secondary);
+            font-weight: 600;
+        }
+
+        .result-date {
+            font-size: 1.3em;
+            color: var(--accent);
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .flower-icon {
+            font-size: 2em;
+            color: var(--accent);
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 60px;
+            padding: 20px;
+            color: var(--text);
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        @media (max-width: 768px) {
+            .calculator-grid {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            .calculator-card {
+                padding: 20px;
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+
+        .calculator-card {
+            animation: pulse 6s ease-in-out infinite;
+        }
+
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(0.5) sepia(1) saturate(5) hue-rotate(170deg);
+            padding: 4px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Éphémérides Organiques</h1>
+            <p class="subtitle">Calculateur de Jours Éphémères</p>
+            <div class="description">
+                <strong>Bienvenue dans l'espace-temps organique.</strong><br>
+                Calculer l'écoulement des jours entre deux dates ou projeter une date dans le futur/passé,
+                en harmonie avec le calendrier grégorien et ses années bissextiles.
+            </div>
+        </header>
+
+        <div class="calculator-grid">
+            <div class="calculator-card">
+                <h2>⏳ Jours Écoulés</h2>
+                <div class="flower-icon">🌸</div>
+                
+                <div class="form-group">
+                    <label for="date-j0">Date de départ (J0)</label>
+                    <input type="date" id="date-j0" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="date-actual">Date actuelle (J)</label>
+                    <input type="date" id="date-actual" required>
+                </div>
+                
+                <button onclick="calculateDaysBetween()">Calculer les jours écoulés</button>
+                
+                <div class="result" id="result-days-between" style="display: none;">
+                    <div class="result-label">Jours écoulés</div>
+                    <div class="result-value" id="days-between-value"></div>
+                </div>
+            </div>
+
+            <div class="calculator-card">
+                <h2>📅 Projection Temporelle</h2>
+                <div class="flower-icon">🌺</div>
+                
+                <div class="form-group">
+                    <label for="date-base">Date de base</label>
+                    <input type="date" id="date-base" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="days-to-add">Nombre de jours à ajouter/soustraire</label>
+                    <input type="number" id="days-to-add" placeholder="0" required>
+                </div>
+                
+                <div class="radio-group">
+                    <div class="radio-option">
+                        <input type="radio" id="operation-add" name="operation" value="add" checked>
+                        <label for="operation-add">Ajouter</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" id="operation-subtract" name="operation" value="subtract">
+                        <label for="operation-subtract">Soustraire</label>
+                    </div>
+                </div>
+                
+                <button onclick="calculateProjectedDate()">Calculer la date projetée</button>
+                
+                <div class="result" id="result-projected-date" style="display: none;">
+                    <div class="result-label" id="projected-operation"></div>
+                    <div class="result-date" id="projected-date-value"></div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Créé avec harmonie pour l'exploration temporelle | Calendrier Grégorien | Années Bissextiles Intégrées</p>
+            <p>360° / 396° / 432° - Éphémérides Organiques</p>
+        </footer>
+    </div>
+
+    <script>
+        function calculateDaysBetween() {
+            const dateJ0 = document.getElementById('date-j0').value;
+            const dateActual = document.getElementById('date-actual').value;
+            
+            if (!dateJ0 || !dateActual) {
+                alert('Veuillez entrer les deux dates.');
+                return;
+            }
+            
+            const startDate = new Date(dateJ0);
+            const endDate = new Date(dateActual);
+            
+            const timeDiff = endDate - startDate;
+            const daysDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+            
+            const resultElement = document.getElementById('result-days-between');
+            const valueElement = document.getElementById('days-between-value');
+            
+            valueElement.textContent = Math.abs(daysDiff);
+            resultElement.style.display = 'block';
+            
+            resultElement.style.animation = 'none';
+            void resultElement.offsetWidth;
+            resultElement.style.animation = 'pulse 1s ease-in-out';
+        }
+
+        function calculateProjectedDate() {
+            const baseDate = document.getElementById('date-base').value;
+            const daysInput = document.getElementById('days-to-add').value;
+            const operation = document.querySelector('input[name="operation"]:checked').value;
+            
+            if (!baseDate || daysInput === '') {
+                alert('Veuillez entrer une date de base et un nombre de jours.');
+                return;
+            }
+            
+            const date = new Date(baseDate);
+            const days = parseInt(daysInput);
+            
+            if (operation === 'add') {
+                date.setDate(date.getDate() + days);
+            } else {
+                date.setDate(date.getDate() - days);
+            }
+            
+            const formattedDate = formatDate(date);
+            
+            const resultElement = document.getElementById('result-projected-date');
+            const operationLabel = document.getElementById('projected-operation');
+            const valueElement = document.getElementById('projected-date-value');
+            
+            operationLabel.textContent = operation === 'add' ? 'Date après ajout' : 'Date après soustraction';
+            valueElement.textContent = formattedDate;
+            resultElement.style.display = 'block';
+            
+            resultElement.style.animation = 'none';
+            void resultElement.offsetWidth;
+            resultElement.style.animation = 'pulse 1s ease-in-out';
+        }
+
+        function formatDate(date) {
+            const days = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+            const months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 
+                          'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+            
+            const dayName = days[date.getDay()];
+            const day = date.getDate();
+            const monthName = months[date.getMonth()];
+            const year = date.getFullYear();
+            
+            return `${dayName} ${day} ${monthName} ${year}`;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('date-actual').value = today;
+            document.getElementById('date-base').value = today;
+        });
+    </script>
+</body>
+</html>
