@@ -2,6 +2,7 @@ export function initBG(canvas){
   var ctx = canvas.getContext('2d');
   var stars = [];
   var tiltX = 0, tiltY = 0;
+  var wallpaperImg = null;
 
   function resize(){
     var rect = canvas.getBoundingClientRect();
@@ -32,6 +33,13 @@ export function initBG(canvas){
     }
   }catch(e){}
 
+  function setWallpaper(src){
+    if(!src){ wallpaperImg = null; return; }
+    var img = new Image();
+    img.onload = function(){ wallpaperImg = img; };
+    img.src = src;
+  }
+
   function render(state){
     var t = performance.now()/1000;
     ctx.clearRect(0,0,1000,1000);
@@ -48,6 +56,16 @@ export function initBG(canvas){
     ctx.fillStyle = grad;
     ctx.fillRect(0,0,1000,1000);
 
+    if(wallpaperImg){
+      ctx.save();
+      ctx.globalAlpha = 0.32;
+      ctx.beginPath();
+      ctx.arc(500,500,470,0,Math.PI*2);
+      ctx.clip();
+      ctx.drawImage(wallpaperImg, 38, 38, 924, 924);
+      ctx.restore();
+    }
+
     stars.forEach(function(s){
       var tw = 0.55 + 0.45*Math.sin(t*1.2 + s.tw);
       var px = s.x + tiltX*22*s.depth;
@@ -62,5 +80,5 @@ export function initBG(canvas){
   window.addEventListener('resize', resize);
   resize();
 
-  return { render: render, resize: resize };
+  return { render: render, resize: resize, setWallpaper: setWallpaper };
 }

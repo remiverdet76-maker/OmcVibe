@@ -96,73 +96,6 @@ function pointAt(angleDeg, r){
   return [500 + r*Math.cos(a), 500 + r*Math.sin(a)];
 }
 
-var svgns = 'http://www.w3.org/2000/svg';
-function buildTicks(groupId, radius, count, majorEvery){
-  var g = document.getElementById(groupId);
-  g.innerHTML = '';
-  for(var i=0;i<count;i++){
-    var angle = i*(360/count);
-    var isMajor = majorEvery && (i % majorEvery === 0);
-    var len = isMajor ? 16 : 8;
-    var p1 = pointAt(angle, radius-len);
-    var p2 = pointAt(angle, radius);
-    var line = document.createElementNS(svgns,'line');
-    line.setAttribute('x1',p1[0]); line.setAttribute('y1',p1[1]);
-    line.setAttribute('x2',p2[0]); line.setAttribute('y2',p2[1]);
-    line.setAttribute('data-angle', angle);
-    line.setAttribute('class','tick'+(isMajor?' major':''));
-    g.appendChild(line);
-  }
-}
-
-function buildOmcvMicroCircles(){
-  var g = document.getElementById('omcv-ticks');
-  g.innerHTML = '';
-  for(var i=0;i<36;i++){
-    var angle = i*10;
-    var p = pointAt(angle, RADIUS.omcv);
-    var c = document.createElementNS(svgns,'circle');
-    c.setAttribute('cx',p[0]); c.setAttribute('cy',p[1]); c.setAttribute('r', i%9===0?5:3);
-    c.setAttribute('data-angle', angle);
-    c.setAttribute('class','tick'+(i%9===0?' major':''));
-    c.setAttribute('fill', i%9===0 ? 'rgba(245,200,66,0.65)' : 'rgba(243,233,210,0.35)');
-    g.appendChild(c);
-  }
-}
-
-function buildOmcMandalaOverlay(){
-  var g = document.getElementById('omc-mandala');
-  g.innerHTML = '';
-  g.setAttribute('opacity', '0.28');
-  var petals = 9, pr = 70;
-  for(var i=0;i<petals;i++){
-    var angle = i*(360/petals);
-    var p = pointAt(angle, RADIUS.omc - 60);
-    var c = document.createElementNS(svgns,'circle');
-    c.setAttribute('cx', p[0]); c.setAttribute('cy', p[1]); c.setAttribute('r', pr);
-    c.setAttribute('fill','none'); c.setAttribute('stroke','rgba(245,200,66,0.5)'); c.setAttribute('stroke-width','1.2');
-    g.appendChild(c);
-  }
-  var outer = document.createElementNS(svgns,'circle');
-  outer.setAttribute('cx',500); outer.setAttribute('cy',500); outer.setAttribute('r', RADIUS.omc-60);
-  outer.setAttribute('fill','none'); outer.setAttribute('stroke','rgba(245,200,66,0.35)'); outer.setAttribute('stroke-width','1');
-  g.appendChild(outer);
-}
-
-function tickMicroVibration(groupId, angleDeg){
-  var g = document.getElementById(groupId);
-  var children = g.children;
-  for(var i=0;i<children.length;i++){
-    var el = children[i];
-    var a = parseFloat(el.getAttribute('data-angle'));
-    var diff = Math.abs(((a - angleDeg + 540) % 360) - 180);
-    var prox = Math.max(0, 1 - diff/14);
-    var scale = 1 + prox*0.9;
-    el.style.transform = prox>0.01 ? ('scale('+scale.toFixed(3)+')') : '';
-    el.style.opacity = prox>0.01 ? (0.6+prox*0.4).toFixed(2) : '';
-  }
-}
-
 var readoutEl = document.getElementById('omc-readout');
 var lastReadoutText = '';
 function renderRollingNumber(text){
@@ -194,8 +127,6 @@ var sphere3d = initSphere3D(sphereCanvas);
 var fx = initFX(fxCanvas);
 var bg = initBG(bgCanvas);
 
-var omcvTrackGroup = document.getElementById('ring-omcv');
-var omcMandalaGroup = document.getElementById('omc-mandala');
 var lastComets = {};
 
 function updateReadingPanel(state){
@@ -218,6 +149,8 @@ function updateJ0Panel(){
   el.innerHTML = 'J0 = <b>'+j0.toISOString().slice(0,10)+'</b><br/>'+days+' jours écoulés depuis J0';
 }
 
+var SHIMMER_SPEED = { cv:54, omc:19, omcv:6 };
+
 function render(state){
   var cvAngle = state.cvPhase*360;
   var omcAngle = state.omcPhase*360;
@@ -228,30 +161,24 @@ function render(state){
   readoutEl.style.color = col;
   readoutEl.style.textShadow = '0 0 '+(14+state.densityWeight*14)+'px '+col+'aa, 0 0 4px rgba(58,36,8,0.4)';
 
-  omcvTrackGroup.style.display = settings.showOmcV ? '' : 'none';
-  omcMandalaGroup.setAttribute('transform', 'rotate('+(state.solondes*0.00002 % 360)+' 500 500)');
-  omcMandalaGroup.style.opacity = (0.22 + 0.1*Math.sin(state.pulsePhase*Math.PI*2)).toFixed(2);
-
-  tickMicroVibration('cv-ticks', cvAngle);
-  tickMicroVibration('omc-ticks', omcAngle);
-  if(settings.showOmcV) tickMicroVibration('omcv-ticks', omcvAngle);
-
-  var cvPt = pointAt(cvAngle, RADIUS.cv);
-  var omcPt = pointAt(omcAngle, RADIUS.omc);
-  var comets = [
-    { key:'cv', x:cvPt[0], y:cvPt[1], angle:cvAngle, color: settings.colors.cv, r: settings.sizes.cv },
-    { key:'omc', x:omcPt[0], y:omcPt[1], angle:omcAngle, color: settings.colors.omc, r: settings.sizes.omc }
-  ];
+  var cv = { key:'cv', radius:RADIUS.cv, angle:cvAngle, color: settings.colors.cv, cometR: settings.sizes.cv, shimmerSpeed: SHIMMER_SPEED.cv };
+  var omc = { key:'omc', radius:RADIUS.omc, angle:omcAngle, color: settings.colors.omc, cometR: settings.sizes.omc, shimmerSpeed: SHIMMER_SPEED.omc, miniOf: cv };
+  var rings = [cv, omc];
   if(settings.showOmcV){
-    var omcvPt = pointAt(omcvAngle, RADIUS.omcv);
-    comets.push({ key:'omcv', x:omcvPt[0], y:omcvPt[1], angle:omcvAngle, color: settings.colors.omcv, r: settings.sizes.omcv });
+    var omcv = { key:'omcv', radius:RADIUS.omcv, angle:omcvAngle, color: settings.colors.omcv, cometR: settings.sizes.omcv, shimmerSpeed: SHIMMER_SPEED.omcv, miniOf: omc };
+    rings.push(omcv);
   }
-  lastComets = {}; comets.forEach(function(c){ lastComets[c.key]=c; });
+
+  lastComets = {};
+  rings.forEach(function(r){
+    var p = pointAt(r.angle, r.radius);
+    lastComets[r.key] = { x:p[0], y:p[1] };
+  });
 
   state.fluxColor = col;
   bg.render(state);
   sphere3d.update(state);
-  var crossed = fx.render(state, comets);
+  var crossed = fx.render(state, rings);
   if(settings.haptics && crossed && crossed.length && navigator.vibrate){
     navigator.vibrate(14);
   }
@@ -266,7 +193,7 @@ function loop(){
 }
 
 function applyWallpaper(src){
-  document.getElementById('mandala-img').setAttribute('href', src);
+  bg.setWallpaper(src);
 }
 
 function selectPreset(id){
@@ -452,10 +379,6 @@ function initUI(){
   updateJ0Panel();
 }
 
-buildTicks('cv-ticks', RADIUS.cv, 36, 9);
-buildTicks('omc-ticks', RADIUS.omc, 36, 9);
-buildOmcvMicroCircles();
-buildOmcMandalaOverlay();
 initWallpaper();
 initUI();
 loop();

@@ -12,47 +12,6 @@
   <div id="scene">
     <canvas id="bg-canvas"></canvas>
     <canvas id="sphere-canvas"></canvas>
-
-    <svg id="clock" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <clipPath id="face-clip"><circle cx="500" cy="500" r="462"/></clipPath>
-
-        <linearGradient id="metal-cv" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#ffffff"/><stop offset="45%" stop-color="#c9c9d6"/>
-          <stop offset="55%" stop-color="#8f8fa0"/><stop offset="100%" stop-color="#ffffff"/>
-        </linearGradient>
-        <linearGradient id="metal-omc" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#fff2c0"/><stop offset="45%" stop-color="#d4a843"/>
-          <stop offset="55%" stop-color="#8a5f18"/><stop offset="100%" stop-color="#fff2c0"/>
-        </linearGradient>
-        <linearGradient id="metal-omcv" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#e2d2ff"/><stop offset="45%" stop-color="#7b58d4"/>
-          <stop offset="55%" stop-color="#4a3486"/><stop offset="100%" stop-color="#e2d2ff"/>
-        </linearGradient>
-      </defs>
-
-      <g clip-path="url(#face-clip)">
-        <image id="mandala-img" href="img/omcha-mandala-2.png" x="38" y="38" width="924" height="924"
-               preserveAspectRatio="xMidYMid slice" opacity="0.62"/>
-      </g>
-
-      <g id="ring-omcv">
-        <circle class="ring-track" id="track-omcv" cx="500" cy="500" r="460" fill="none"/>
-        <g id="omcv-ticks"></g>
-      </g>
-
-      <g id="ring-omc">
-        <circle class="ring-track" id="track-omc" cx="500" cy="500" r="330" fill="none"/>
-        <g id="omc-ticks"></g>
-        <g id="omc-mandala"></g>
-      </g>
-
-      <g id="ring-cv">
-        <circle class="ring-track" id="track-cv" cx="500" cy="500" r="195" fill="none"/>
-        <g id="cv-ticks"></g>
-      </g>
-    </svg>
-
     <canvas id="fx-canvas"></canvas>
 
     <div id="center-readout">
@@ -146,7 +105,7 @@
         <label for="inp-wallpaper-file">Importer votre image</label>
         <input type="file" id="inp-wallpaper-file" accept="image/*"/>
       </div>
-      <p class="hint">L'image est recentrée automatiquement au chargement ; ajustez si besoin avec un glisser sur le cadran.</p>
+      <p class="hint">L'image est recentrée automatiquement au chargement et utilisée en toile de fond discrète derrière les anneaux.</p>
     </section>
 
     <section class="ptab-panel" data-panel="apropos">

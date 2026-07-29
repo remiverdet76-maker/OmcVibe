@@ -8,7 +8,7 @@ export function initSphere3D(canvas){
   var camera = new THREE.PerspectiveCamera(32, 1, 0.1, 10);
   camera.position.set(0, 0, 4.2);
 
-  var geo = new THREE.SphereGeometry(1, 72, 72);
+  var geo = new THREE.SphereGeometry(0.1, 72, 72);
   var mat = new THREE.MeshPhysicalMaterial({
     color: 0xf5c842,
     emissive: 0x3a1e00,
