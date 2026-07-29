@@ -9,55 +9,58 @@
 <body>
 <div id="app">
 
-  <svg id="clock" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <clipPath id="face-clip"><circle cx="500" cy="500" r="462"/></clipPath>
-      <radialGradient id="sphere-grad" cx="38%" cy="32%" r="70%">
-        <stop offset="0%" stop-color="#fff7d6"/>
-        <stop offset="35%" stop-color="#f5c842"/>
-        <stop offset="100%" stop-color="#7a4f0c"/>
-      </radialGradient>
-      <filter id="soft-glow" x="-120%" y="-120%" width="340%" height="340%">
-        <feGaussianBlur stdDeviation="6" result="blur"/>
-        <feMerge>
-          <feMergeNode in="blur"/>
-          <feMergeNode in="SourceGraphic"/>
-        </feMerge>
-      </filter>
-    </defs>
+  <div id="scene">
+    <canvas id="bg-canvas"></canvas>
+    <canvas id="sphere-canvas"></canvas>
 
-    <circle cx="500" cy="500" r="490" fill="#05030c"/>
+    <svg id="clock" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <clipPath id="face-clip"><circle cx="500" cy="500" r="462"/></clipPath>
 
-    <g clip-path="url(#face-clip)">
-      <image id="mandala-img" href="img/omcha-mandala.png" x="38" y="38" width="924" height="924"
-             preserveAspectRatio="xMidYMid slice" opacity="0.55"/>
-    </g>
+        <linearGradient id="metal-cv" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#ffffff"/><stop offset="45%" stop-color="#c9c9d6"/>
+          <stop offset="55%" stop-color="#8f8fa0"/><stop offset="100%" stop-color="#ffffff"/>
+        </linearGradient>
+        <linearGradient id="metal-omc" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#fff2c0"/><stop offset="45%" stop-color="#d4a843"/>
+          <stop offset="55%" stop-color="#8a5f18"/><stop offset="100%" stop-color="#fff2c0"/>
+        </linearGradient>
+        <linearGradient id="metal-omcv" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#e2d2ff"/><stop offset="45%" stop-color="#7b58d4"/>
+          <stop offset="55%" stop-color="#4a3486"/><stop offset="100%" stop-color="#e2d2ff"/>
+        </linearGradient>
+      </defs>
 
-    <g id="flux-layer" fill="none" stroke-linecap="round"></g>
+      <g clip-path="url(#face-clip)">
+        <image id="mandala-img" href="img/omcha-mandala-2.png" x="38" y="38" width="924" height="924"
+               preserveAspectRatio="xMidYMid slice" opacity="0.62"/>
+      </g>
 
-    <g id="ring-omcv">
-      <circle class="ring-track" cx="500" cy="500" r="460" fill="none"/>
-      <g id="omcv-ticks"></g>
-      <g id="omcv-rotor"><circle class="comet" id="omcv-comet" cx="500" cy="40" r="14"/></g>
-    </g>
+      <g id="ring-omcv">
+        <circle class="ring-track" id="track-omcv" cx="500" cy="500" r="460" fill="none"/>
+        <g id="omcv-ticks"></g>
+      </g>
 
-    <g id="ring-omc">
-      <circle class="ring-track" cx="500" cy="500" r="330" fill="none"/>
-      <g id="omc-ticks"></g>
-      <g id="omc-rotor"><circle class="comet" id="omc-comet" cx="500" cy="170" r="11"/></g>
-    </g>
+      <g id="ring-omc">
+        <circle class="ring-track" id="track-omc" cx="500" cy="500" r="330" fill="none"/>
+        <g id="omc-ticks"></g>
+        <g id="omc-mandala"></g>
+      </g>
 
-    <g id="ring-cv">
-      <circle class="ring-track" cx="500" cy="500" r="195" fill="none"/>
-      <g id="cv-ticks"></g>
-      <g id="cv-rotor"><circle class="comet" id="cv-comet" cx="500" cy="305" r="7"/></g>
-    </g>
+      <g id="ring-cv">
+        <circle class="ring-track" id="track-cv" cx="500" cy="500" r="195" fill="none"/>
+        <g id="cv-ticks"></g>
+      </g>
+    </svg>
 
-    <g id="sphere-group">
-      <circle id="sphere" cx="500" cy="500" r="78" fill="url(#sphere-grad)" filter="url(#soft-glow)"/>
-      <text id="omc-readout" x="500" y="513" text-anchor="middle">0.0</text>
-    </g>
-  </svg>
+    <canvas id="fx-canvas"></canvas>
+
+    <div id="center-readout">
+      <div id="omc-readout">0.0</div>
+    </div>
+
+    <div id="comet-popup" class="hidden"></div>
+  </div>
 
   <button id="btn-settings" aria-label="Réglages">&#9881;</button>
 
@@ -71,6 +74,7 @@
       <button class="ptab active" data-tab="lecture">Lecture</button>
       <button class="ptab" data-tab="j0">J0</button>
       <button class="ptab" data-tab="design">Design</button>
+      <button class="ptab" data-tab="fond">Fond</button>
       <button class="ptab" data-tab="apropos">À propos</button>
     </div>
 
@@ -85,6 +89,10 @@
       <div class="row toggle-row">
         <label for="chk-showomcv">Afficher l'anneau OmcV</label>
         <input type="checkbox" id="chk-showomcv" checked/>
+      </div>
+      <div class="row toggle-row">
+        <label for="chk-haptics">Retour haptique</label>
+        <input type="checkbox" id="chk-haptics" checked/>
       </div>
       <div id="reading-readout" class="readout-box"></div>
     </section>
@@ -125,13 +133,30 @@
       <div class="row"><label>Glow</label><input type="range" id="glow-omcv" min="0" max="1" step="0.05" value="0.5"/></div>
     </section>
 
+    <section class="ptab-panel" data-panel="fond">
+      <div class="row">
+        <label>Fonds intégrés</label>
+        <div class="wallpaper-grid" id="wallpaper-presets">
+          <button class="wp-thumb" data-wp="mandala2"><img src="img/omcha-mandala-2.png"/></button>
+          <button class="wp-thumb" data-wp="mandala1"><img src="img/omcha-mandala.png"/></button>
+          <button class="wp-thumb wp-none" data-wp="none"><span>Étoiles seules</span></button>
+        </div>
+      </div>
+      <div class="row">
+        <label for="inp-wallpaper-file">Importer votre image</label>
+        <input type="file" id="inp-wallpaper-file" accept="image/*"/>
+      </div>
+      <p class="hint">L'image est recentrée automatiquement au chargement ; ajustez si besoin avec un glisser sur le cadran.</p>
+    </section>
+
     <section class="ptab-panel" data-panel="apropos">
-      <p class="hint">OmchaWatch — horloge solaire fractale, 36 × 432 unités OmcV. Indépendante du temps civil : aucune donnée GPS, aucune heure 24/60/60 affichée. Version 1 : réglage J0 personnalisable, sans planisphère (à venir).</p>
+      <p class="hint">OmchaWatch — horloge solaire fractale, 36 × 432 unités OmcV. Indépendante du temps civil : aucune donnée GPS, aucune heure 24/60/60 affichée.</p>
       <p class="hint">Solônde (centre) → Cv (anneau 1) → Omc (anneau 2) → OmcV (anneau 3), chaque niveau relié au précédent par 15 552 unités (432 × 36).</p>
+      <p class="hint">Astuces : pincez pour zoomer sur le cadran, touchez une comète pour sa fiche détaillée.</p>
     </section>
   </div>
 
 </div>
-<script src="js/app.js"></script>
+<script type="module" src="js/app.js"></script>
 </body>
 </html>

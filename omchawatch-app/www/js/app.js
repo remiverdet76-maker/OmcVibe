@@ -1,11 +1,13 @@
-(function(){
-"use strict";
+import { initSphere3D } from './sphere3d.js';
+import { initFX } from './fx.js';
+import { initBG } from './bg.js';
 
 var UNIT = 15552;
 var CYCLE432 = 432;
 var TROPICAL_YEAR_DAYS = 365.2425;
 var EQUINOX_2026_MS = Date.UTC(2026,2,20,0,0,0);
 var DAY_MS = 86400000;
+var RADIUS = { cv:195, omc:330, omcv:460 };
 
 var ARCHETYPES = ['Mobilité','Relation','Matière','Action','Expansion','Structure','Innovation','Sensibilité','Transformation'];
 var SEASONS = ['Printemps','Été','Automne','Hiver'];
@@ -16,9 +18,11 @@ var defaults = {
   sizes: { cv:7, omc:11, omcv:14 },
   glow: { cv:0.6, omc:0.7, omcv:0.5 },
   showOmcV: true,
+  haptics: true,
   reading: '432',
   birthdate: '1997-06-12',
-  offsetDays: 288
+  offsetDays: 288,
+  wallpaperPreset: 'mandala2'
 };
 
 var settings = loadSettings();
@@ -32,7 +36,7 @@ function loadSettings(){
   }catch(e){ return JSON.parse(JSON.stringify(defaults)); }
 }
 function saveSettings(){
-  localStorage.setItem('omchawatch-settings', JSON.stringify(settings));
+  try{ localStorage.setItem('omchawatch-settings', JSON.stringify(settings)); }catch(e){}
 }
 
 function mod(n,m){ return ((n % m) + m) % m; }
@@ -82,6 +86,10 @@ function lerpColor(a,b,t){
   var r=Math.round(ca[0]+(cb[0]-ca[0])*t), g=Math.round(ca[1]+(cb[1]-ca[1])*t), bl=Math.round(ca[2]+(cb[2]-ca[2])*t);
   return 'rgb('+r+','+g+','+bl+')';
 }
+function hex2(a,b,t){
+  var c = lerpColor(a,b,t).match(/\d+/g).map(Number);
+  return '#'+c.map(function(v){return v.toString(16).padStart(2,'0');}).join('');
+}
 
 function pointAt(angleDeg, r){
   var a = (angleDeg-90) * Math.PI/180;
@@ -101,12 +109,11 @@ function buildTicks(groupId, radius, count, majorEvery){
     var line = document.createElementNS(svgns,'line');
     line.setAttribute('x1',p1[0]); line.setAttribute('y1',p1[1]);
     line.setAttribute('x2',p2[0]); line.setAttribute('y2',p2[1]);
+    line.setAttribute('data-angle', angle);
     line.setAttribute('class','tick'+(isMajor?' major':''));
     g.appendChild(line);
   }
 }
-
-var RADIUS = { cv:195, omc:330, omcv:460 };
 
 function buildOmcvMicroCircles(){
   var g = document.getElementById('omcv-ticks');
@@ -116,69 +123,80 @@ function buildOmcvMicroCircles(){
     var p = pointAt(angle, RADIUS.omcv);
     var c = document.createElementNS(svgns,'circle');
     c.setAttribute('cx',p[0]); c.setAttribute('cy',p[1]); c.setAttribute('r', i%9===0?5:3);
+    c.setAttribute('data-angle', angle);
     c.setAttribute('class','tick'+(i%9===0?' major':''));
     c.setAttribute('fill', i%9===0 ? 'rgba(245,200,66,0.65)' : 'rgba(243,233,210,0.35)');
     g.appendChild(c);
   }
 }
 
-function applyRingStyle(prefix, color, size, glow){
-  var comet = document.getElementById(prefix+'-comet');
-  comet.setAttribute('fill', color);
-  comet.style.color = color;
-  comet.setAttribute('r', size);
-  comet.style.filter = 'drop-shadow(0 0 '+(glow*16)+'px '+color+')';
+function buildOmcMandalaOverlay(){
+  var g = document.getElementById('omc-mandala');
+  g.innerHTML = '';
+  g.setAttribute('opacity', '0.28');
+  var petals = 9, pr = 70;
+  for(var i=0;i<petals;i++){
+    var angle = i*(360/petals);
+    var p = pointAt(angle, RADIUS.omc - 60);
+    var c = document.createElementNS(svgns,'circle');
+    c.setAttribute('cx', p[0]); c.setAttribute('cy', p[1]); c.setAttribute('r', pr);
+    c.setAttribute('fill','none'); c.setAttribute('stroke','rgba(245,200,66,0.5)'); c.setAttribute('stroke-width','1.2');
+    g.appendChild(c);
+  }
+  var outer = document.createElementNS(svgns,'circle');
+  outer.setAttribute('cx',500); outer.setAttribute('cy',500); outer.setAttribute('r', RADIUS.omc-60);
+  outer.setAttribute('fill','none'); outer.setAttribute('stroke','rgba(245,200,66,0.35)'); outer.setAttribute('stroke-width','1');
+  g.appendChild(outer);
 }
 
-var fluxLayer = document.getElementById('flux-layer');
-function drawFlux(points, color, weight){
-  fluxLayer.innerHTML = '';
-  var t = Date.now()/1000;
-  for(var i=0;i<points.length-1;i++){
-    var a = points[i], b = points[i+1];
-    var mx = (a[0]+b[0])/2, my=(a[1]+b[1])/2;
-    var dx = b[0]-a[0], dy = b[1]-a[1];
-    var norm = Math.sqrt(dx*dx+dy*dy) || 1;
-    var nx = -dy/norm, ny = dx/norm;
-    var bulge = 14 * (0.4+weight) * Math.sin(t*1.3 + i*1.7);
-    var cx = mx + nx*bulge, cy = my + ny*bulge;
-    var path = document.createElementNS(svgns,'path');
-    path.setAttribute('d', 'M '+a[0]+' '+a[1]+' Q '+cx+' '+cy+' '+b[0]+' '+b[1]);
-    path.setAttribute('stroke', color);
-    path.setAttribute('stroke-width', 1 + weight*2.5);
-    path.setAttribute('opacity', 0.2 + weight*0.35);
-    fluxLayer.appendChild(path);
+function tickMicroVibration(groupId, angleDeg){
+  var g = document.getElementById(groupId);
+  var children = g.children;
+  for(var i=0;i<children.length;i++){
+    var el = children[i];
+    var a = parseFloat(el.getAttribute('data-angle'));
+    var diff = Math.abs(((a - angleDeg + 540) % 360) - 180);
+    var prox = Math.max(0, 1 - diff/14);
+    var scale = 1 + prox*0.9;
+    el.style.transform = prox>0.01 ? ('scale('+scale.toFixed(3)+')') : '';
+    el.style.opacity = prox>0.01 ? (0.6+prox*0.4).toFixed(2) : '';
   }
 }
 
-var omcvRing = document.getElementById('ring-omcv');
 var readoutEl = document.getElementById('omc-readout');
-var sphereEl = document.getElementById('sphere');
-
-function render(state){
-  document.getElementById('cv-rotor').setAttribute('transform','rotate('+(state.cvPhase*360)+' 500 500)');
-  document.getElementById('omc-rotor').setAttribute('transform','rotate('+(state.omcPhase*360)+' 500 500)');
-  var omcvAngle = (state.dayInCycle/CYCLE432)*360;
-  document.getElementById('omcv-rotor').setAttribute('transform','rotate('+omcvAngle+' 500 500)');
-
-  readoutEl.textContent = state.omcValue36.toFixed(1);
-  var col = lerpColor('#3ab8d8','#f5a742', state.densityWeight);
-  readoutEl.style.fill = col;
-
-  var pulseScale = 1 + 0.09*Math.sin(state.pulsePhase*2*Math.PI);
-  sphereEl.setAttribute('r', 78*pulseScale);
-  sphereEl.style.opacity = 0.85 + 0.15*Math.sin(state.pulsePhase*2*Math.PI);
-
-  omcvRing.style.display = settings.showOmcV ? '' : 'none';
-
-  var cvPt = pointAt(state.cvPhase*360, RADIUS.cv);
-  var omcPt = pointAt(state.omcPhase*360, RADIUS.omc);
-  var pts = [[500,500], cvPt, omcPt];
-  if(settings.showOmcV){ pts.push(pointAt(omcvAngle, RADIUS.omcv)); }
-  drawFlux(pts, col, state.densityWeight);
-
-  updateReadingPanel(state);
+var lastReadoutText = '';
+function renderRollingNumber(text){
+  if(text === lastReadoutText) return;
+  var prev = lastReadoutText;
+  lastReadoutText = text;
+  readoutEl.innerHTML = '';
+  for(var i=0;i<text.length;i++){
+    var span = document.createElement('span');
+    span.className = 'digit';
+    span.textContent = text[i];
+    if(prev[i] !== text[i]){
+      span.style.animation = 'none';
+      span.getBoundingClientRect();
+      span.style.animation = 'digitRoll 0.35s ease';
+    }
+    readoutEl.appendChild(span);
+  }
 }
+
+var styleTag = document.createElement('style');
+styleTag.textContent = '@keyframes digitRoll{0%{transform:translateY(-0.4em);opacity:0}100%{transform:translateY(0);opacity:1}} #omc-readout .digit{display:inline-block}';
+document.head.appendChild(styleTag);
+
+var sphereCanvas = document.getElementById('sphere-canvas');
+var fxCanvas = document.getElementById('fx-canvas');
+var bgCanvas = document.getElementById('bg-canvas');
+var sphere3d = initSphere3D(sphereCanvas);
+var fx = initFX(fxCanvas);
+var bg = initBG(bgCanvas);
+
+var omcvTrackGroup = document.getElementById('ring-omcv');
+var omcMandalaGroup = document.getElementById('omc-mandala');
+var lastComets = {};
 
 function updateReadingPanel(state){
   var el = document.getElementById('reading-readout');
@@ -200,11 +218,161 @@ function updateJ0Panel(){
   el.innerHTML = 'J0 = <b>'+j0.toISOString().slice(0,10)+'</b><br/>'+days+' jours écoulés depuis J0';
 }
 
+function render(state){
+  var cvAngle = state.cvPhase*360;
+  var omcAngle = state.omcPhase*360;
+  var omcvAngle = (state.dayInCycle/CYCLE432)*360;
+
+  renderRollingNumber(state.omcValue36.toFixed(1));
+  var col = hex2('#3ab8d8','#f5a742', state.densityWeight);
+  readoutEl.style.color = col;
+  readoutEl.style.textShadow = '0 0 '+(14+state.densityWeight*14)+'px '+col+'aa, 0 0 4px rgba(58,36,8,0.4)';
+
+  omcvTrackGroup.style.display = settings.showOmcV ? '' : 'none';
+  omcMandalaGroup.setAttribute('transform', 'rotate('+(state.solondes*0.00002 % 360)+' 500 500)');
+  omcMandalaGroup.style.opacity = (0.22 + 0.1*Math.sin(state.pulsePhase*Math.PI*2)).toFixed(2);
+
+  tickMicroVibration('cv-ticks', cvAngle);
+  tickMicroVibration('omc-ticks', omcAngle);
+  if(settings.showOmcV) tickMicroVibration('omcv-ticks', omcvAngle);
+
+  var cvPt = pointAt(cvAngle, RADIUS.cv);
+  var omcPt = pointAt(omcAngle, RADIUS.omc);
+  var comets = [
+    { key:'cv', x:cvPt[0], y:cvPt[1], angle:cvAngle, color: settings.colors.cv, r: settings.sizes.cv },
+    { key:'omc', x:omcPt[0], y:omcPt[1], angle:omcAngle, color: settings.colors.omc, r: settings.sizes.omc }
+  ];
+  if(settings.showOmcV){
+    var omcvPt = pointAt(omcvAngle, RADIUS.omcv);
+    comets.push({ key:'omcv', x:omcvPt[0], y:omcvPt[1], angle:omcvAngle, color: settings.colors.omcv, r: settings.sizes.omcv });
+  }
+  lastComets = {}; comets.forEach(function(c){ lastComets[c.key]=c; });
+
+  state.fluxColor = col;
+  bg.render(state);
+  sphere3d.update(state);
+  var crossed = fx.render(state, comets);
+  if(settings.haptics && crossed && crossed.length && navigator.vibrate){
+    navigator.vibrate(14);
+  }
+
+  updateReadingPanel(state);
+}
+
 function loop(){
   var state = computeEngineState(Date.now());
   render(state);
   requestAnimationFrame(loop);
 }
+
+function applyWallpaper(src){
+  document.getElementById('mandala-img').setAttribute('href', src);
+}
+
+function selectPreset(id){
+  settings.wallpaperPreset = id;
+  settings.wallpaperCustom = null;
+  saveSettings();
+  try{ localStorage.removeItem('omchawatch-wallpaper'); }catch(e){}
+  refreshWallpaperUI();
+  if(id === 'none'){ applyWallpaper(''); }
+  else if(id === 'mandala1'){ applyWallpaper('img/omcha-mandala.png'); }
+  else { applyWallpaper('img/omcha-mandala-2.png'); }
+}
+
+function refreshWallpaperUI(){
+  document.querySelectorAll('.wp-thumb').forEach(function(btn){
+    btn.classList.toggle('active', btn.dataset.wp === settings.wallpaperPreset && !settings.wallpaperCustom);
+  });
+}
+
+function importWallpaperFile(file){
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var img = new Image();
+    img.onload = function(){
+      var size = 1000;
+      var canvas = document.createElement('canvas');
+      canvas.width = size; canvas.height = size;
+      var ctx = canvas.getContext('2d');
+      var side = Math.min(img.width, img.height);
+      var sx = (img.width-side)/2, sy = (img.height-side)/2;
+      ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
+      var dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      try{
+        localStorage.setItem('omchawatch-wallpaper', dataUrl);
+        settings.wallpaperCustom = true;
+        saveSettings();
+      }catch(err){ settings.wallpaperCustom = true; }
+      applyWallpaper(dataUrl);
+      refreshWallpaperUI();
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function initWallpaper(){
+  var custom = null;
+  try{ custom = localStorage.getItem('omchawatch-wallpaper'); }catch(e){}
+  if(custom && settings.wallpaperCustom){
+    applyWallpaper(custom);
+  } else {
+    selectPreset(settings.wallpaperPreset || 'mandala2');
+  }
+  refreshWallpaperUI();
+
+  document.querySelectorAll('.wp-thumb').forEach(function(btn){
+    btn.addEventListener('click', function(){ selectPreset(btn.dataset.wp); });
+  });
+  document.getElementById('inp-wallpaper-file').addEventListener('change', function(e){
+    if(e.target.files && e.target.files[0]) importWallpaperFile(e.target.files[0]);
+  });
+}
+
+var scene = document.getElementById('scene');
+var zoomScale = 1;
+(function initGestures(){
+  var pinchStartDist = null, pinchStartScale = 1;
+  function dist(t0,t1){ return Math.hypot(t1.clientX-t0.clientX, t1.clientY-t0.clientY); }
+  scene.addEventListener('touchstart', function(e){
+    if(e.touches.length === 2){
+      pinchStartDist = dist(e.touches[0], e.touches[1]);
+      pinchStartScale = zoomScale;
+    }
+  }, { passive:true });
+  scene.addEventListener('touchmove', function(e){
+    if(e.touches.length === 2 && pinchStartDist){
+      var d = dist(e.touches[0], e.touches[1]);
+      zoomScale = Math.min(2.2, Math.max(0.8, pinchStartScale * (d/pinchStartDist)));
+      scene.style.transform = 'rotateX(7deg) scale('+zoomScale+')';
+    }
+  }, { passive:true });
+  scene.addEventListener('touchend', function(e){
+    if(e.touches.length < 2) pinchStartDist = null;
+  }, { passive:true });
+
+  var popup = document.getElementById('comet-popup');
+  var popupTimer = null;
+  function handleTap(clientX, clientY){
+    var rect = scene.getBoundingClientRect();
+    var ux = (clientX-rect.left)/rect.width*1000;
+    var uy = (clientY-rect.top)/rect.height*1000;
+    var best = null, bestDist = 34;
+    Object.keys(lastComets).forEach(function(k){
+      var c = lastComets[k];
+      var d = Math.hypot(c.x-ux, c.y-uy);
+      if(d < bestDist){ bestDist = d; best = k; }
+    });
+    if(!best) return;
+    var label = { cv:'Cv — Chavibe (comète neutre la plus rapide)', omc:'Omc — Omcha (unité affichée au centre)', omcv:'OmcV — anneau humain / terrestre' }[best];
+    popup.textContent = label;
+    popup.classList.add('show');
+    clearTimeout(popupTimer);
+    popupTimer = setTimeout(function(){ popup.classList.remove('show'); }, 2600);
+  }
+  scene.addEventListener('click', function(e){ handleTap(e.clientX, e.clientY); });
+})();
 
 function initUI(){
   document.getElementById('btn-settings').addEventListener('click', function(){
@@ -238,6 +406,10 @@ function initUI(){
     settings.showOmcV = e.target.checked;
     saveSettings();
   });
+  document.getElementById('chk-haptics').addEventListener('change', function(e){
+    settings.haptics = e.target.checked;
+    saveSettings();
+  });
 
   document.getElementById('inp-birthdate').addEventListener('change', function(e){
     settings.birthdate = e.target.value; saveSettings(); updateJ0Panel();
@@ -252,11 +424,11 @@ function initUI(){
     saveSettings();
   });
 
-  var ringMap = { cv:'cv', omc:'omc', omcv:'omcv' };
-  Object.keys(ringMap).forEach(function(key){
-    document.getElementById('col-'+key).addEventListener('input', function(e){ settings.colors[key]=e.target.value; saveSettings(); applyAllRingStyles(); });
-    document.getElementById('size-'+key).addEventListener('input', function(e){ settings.sizes[key]=Number(e.target.value); saveSettings(); applyAllRingStyles(); });
-    document.getElementById('glow-'+key).addEventListener('input', function(e){ settings.glow[key]=Number(e.target.value); saveSettings(); applyAllRingStyles(); });
+  var ringMap = ['cv','omc','omcv'];
+  ringMap.forEach(function(key){
+    document.getElementById('col-'+key).addEventListener('input', function(e){ settings.colors[key]=e.target.value; saveSettings(); });
+    document.getElementById('size-'+key).addEventListener('input', function(e){ settings.sizes[key]=Number(e.target.value); saveSettings(); });
+    document.getElementById('glow-'+key).addEventListener('input', function(e){ settings.glow[key]=Number(e.target.value); saveSettings(); });
   });
 
   document.getElementById('inp-birthdate').value = settings.birthdate;
@@ -264,6 +436,7 @@ function initUI(){
   document.getElementById('inp-pulse').value = settings.spherePulseSeconds;
   document.getElementById('val-pulse').textContent = settings.spherePulseSeconds.toFixed(1)+'s';
   document.getElementById('chk-showomcv').checked = settings.showOmcV;
+  document.getElementById('chk-haptics').checked = settings.haptics;
   document.getElementById('col-cv').value = settings.colors.cv;
   document.getElementById('col-omc').value = settings.colors.omc;
   document.getElementById('col-omcv').value = settings.colors.omcv;
@@ -279,17 +452,10 @@ function initUI(){
   updateJ0Panel();
 }
 
-function applyAllRingStyles(){
-  applyRingStyle('cv', settings.colors.cv, settings.sizes.cv, settings.glow.cv);
-  applyRingStyle('omc', settings.colors.omc, settings.sizes.omc, settings.glow.omc);
-  applyRingStyle('omcv', settings.colors.omcv, settings.sizes.omcv, settings.glow.omcv);
-}
-
 buildTicks('cv-ticks', RADIUS.cv, 36, 9);
 buildTicks('omc-ticks', RADIUS.omc, 36, 9);
 buildOmcvMicroCircles();
-applyAllRingStyles();
+buildOmcMandalaOverlay();
+initWallpaper();
 initUI();
 loop();
-
-})();
