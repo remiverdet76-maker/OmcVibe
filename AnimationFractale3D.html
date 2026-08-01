@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Système Fractal à 3 Centres — Respiration Cosmique</title>
+<style>
+  :root{
+    --bg:#03050a;
+    --panel:rgba(8,14,24,0.72);
+    --panel-border:rgba(120,180,255,0.18);
+    --accent:#6fd6ff;
+    --accent2:#ff8a5c;
+    --text:#dfe9f5;
+    --text-dim:#8fa3b8;
+    --mono:'SF Mono',ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;padding:0;width:100%;height:100%;overflow:hidden;
+    background:var(--bg);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    color:var(--text);
+  }
+  #canvasHolder{position:fixed;inset:0;}
+  canvas{display:block;}
+
+  .glass{
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    backdrop-filter:blur(14px) saturate(140%);
+    -webkit-backdrop-filter:blur(14px) saturate(140%);
+    border-radius:14px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.45);
+  }
+
+  #title{
+    position:fixed;top:18px;left:18px;max-width:420px;
+    padding:14px 18px;z-index:5;pointer-events:none;
+  }
+  #title h1{margin:0 0 4px;font-size:16px;font-weight:600;letter-spacing:.3px;color:var(--text);}
+  #title p{margin:0;font-size:11.5px;line-height:1.5;color:var(--text-dim);}
+
+  #hud{
+    position:fixed;bottom:18px;left:18px;z-index:5;padding:12px 16px;
+    font-family:var(--mono);font-size:11px;line-height:1.7;color:var(--text-dim);
+    min-width:270px;
+  }
+  #hud .row{display:flex;justify-content:space-between;gap:14px;white-space:nowrap;}
+  #hud b{color:var(--accent);font-weight:600;}
+  #hud .lbl{color:var(--text-dim);}
+  #hud .sec{margin-top:6px;color:var(--accent2);font-size:10px;text-transform:uppercase;letter-spacing:1px;}
+
+  #panel{
+    position:fixed;top:18px;right:18px;z-index:6;width:260px;
+    padding:16px 16px 14px;max-height:calc(100vh - 36px);overflow-y:auto;
+  }
+  #panel h2{margin:0 0 10px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--accent);font-weight:600;}
+  .field{margin-bottom:11px;}
+  .field label{display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-bottom:4px;}
+  .field label span.val{color:var(--text);font-family:var(--mono);}
+  input[type=range]{width:100%;accent-color:var(--accent);height:4px;}
+  .colorrow{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .colorrow span{font-size:11px;color:var(--text-dim);}
+  input[type=color]{width:36px;height:22px;border:none;border-radius:6px;background:none;cursor:pointer;padding:0;}
+  .toggles{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+  .tbtn{
+    flex:1 1 auto;font-size:10.5px;padding:6px 8px;border-radius:8px;
+    border:1px solid var(--panel-border);background:rgba(255,255,255,0.03);
+    color:var(--text-dim);cursor:pointer;text-align:center;user-select:none;
+    transition:all .15s ease;
+  }
+  .tbtn.active{background:rgba(111,214,255,0.16);color:var(--accent);border-color:rgba(111,214,255,0.4);}
+  .tbtn:hover{border-color:rgba(111,214,255,0.35);}
+  hr{border:none;border-top:1px solid var(--panel-border);margin:12px 0;}
+
+  #panelToggle{
+    position:fixed;top:18px;right:18px;z-index:7;display:none;
+    width:36px;height:36px;border-radius:10px;align-items:center;justify-content:center;
+    cursor:pointer;font-size:16px;color:var(--accent);
+  }
+  @media (max-width:720px){
+    #panel{display:none;width:calc(100vw - 36px);}
+    #panel.open{display:block;}
+    #panelToggle{display:flex;}
+    #title{max-width:70vw;}
+  }
+
+  #loading{
+    position:fixed;inset:0;background:var(--bg);z-index:20;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--text-dim);font-family:var(--mono);font-size:12px;letter-spacing:1px;
+    transition:opacity .6s ease;
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">INITIALISATION DU CHAMP FRACTAL…</div>
+
+<div id="canvasHolder"></div>
+
+<div id="title" class="glass">
+  <h1>Système Fractal à 3 Centres</h1>
+  <p>A (fixe) impose son battement polaire 11/10 ↔ 10/11. B et C reproduisent en cascade la même respiration fractale 6/5 ↔ 5/6, chacun à 99,9999&nbsp;% de la masse du précédent. C précesse en spirale au ratio 12/11.</p>
+</div>
+
+<div id="hud" class="glass"></div>
+
+<div id="panelToggle" class="glass">⚙</div>
+<div id="panel" class="glass">
+  <h2>Paramètres</h2>
+
+  <div class="colorrow"><span>Centre A (fixe)</span><input type="color" id="colA" value="#6fd6ff"></div>
+  <div class="colorrow"><span>Centre B</span><input type="color" id="colB" value="#ff8a5c"></div>
+  <div class="colorrow"><span>Centre C (spirale)</span><input type="color" id="colC" value="#b98cff"></div>
+  <div class="colorrow"><span>Flux fluide</span><input type="color" id="colFlux" value="#4fffb0"></div>
+
+  <hr>
+
+  <div class="field">
+    <label>Vitesse globale <span class="val" id="vSpeed">1.00×</span></label>
+    <input type="range" id="speed" min="0.05" max="6" step="0.01" value="1">
+  </div>
+  <div class="field">
+    <label>Amplitude respiration <span class="val" id="vAmp">0.16</span></label>
+    <input type="range" id="amp" min="0.02" max="0.4" step="0.01" value="0.16">
+  </div>
+  <div class="field">
+    <label>Exagération visuelle des masses <span class="val" id="vExag">0.55</span></label>
+    <input type="range" id="exag" min="0.25" max="0.9" step="0.01" value="0.55">
+  </div>
+  <div class="field">
+    <label>Intensité lumineuse (bloom) <span class="val" id="vBloom">0.60</span></label>
+    <input type="range" id="bloom" min="0" max="2.5" step="0.05" value="0.6">
+  </div>
+  <div class="field">
+    <label>Densité du flux <span class="val" id="vFlux">2600</span></label>
+    <input type="range" id="fluxCount" min="400" max="6000" step="100" value="2600">
+  </div>
+
+  <hr>
+  <div class="toggles">
+    <div class="tbtn active" data-t="axes">Axes X/Y/Z</div>
+    <div class="tbtn active" data-t="orbits">Trajectoires</div>
+    <div class="tbtn active" data-t="flux">Flux fluide</div>
+    <div class="tbtn active" data-t="wire">Trame scientifique</div>
+    <div class="tbtn" data-t="grid">Grille</div>
+    <div class="tbtn active" data-t="hud">HUD</div>
+  </div>
+  <hr>
+  <div class="toggles">
+    <div class="tbtn active" id="btnPlay" style="flex:1 1 100%">⏸ Pause</div>
+    <div class="tbtn" id="btnReset" style="flex:1 1 100%">↺ Réinitialiser caméra</div>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { Line2 } from 'three/addons/lines/Line2.js';
+import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+
+/* ============================================================
+   CONSTANTES — ratios exacts fournis par le protocole
+   ============================================================ */
+const RATIO = {
+  breathExpand : 6/5,     // 1.2      expansion maximale de la respiration
+  breathContract: 5/6,    // 0.8333   contraction inverse
+  polarExpand  : 11/10,   // 1.1      expansion polaire du centre fixe
+  polarContract: 10/11,   // 0.9091   contraction polaire opposée
+  spiral       : 12/11,   // 1.0909   précession en spirale du centre C
+  mass         : 0.999999 // 99.9999% — masse de chaque centre / masse du précédent
+};
+const PHASE_LAG = 0.55;   // décalage de cascade A -> B -> C (couplage entraîné)
+const BASE_OMEGA = 0.8;   // vitesse angulaire de base du battement cosmique
+
+const params = {
+  speed: 1, amp: 0.16, exag: 0.55, bloom: 0.6, fluxCount: 2600,
+  axes:true, orbits:true, flux:true, wire:true, grid:false, hud:true,
+  playing:true,
+  colA:'#6fd6ff', colB:'#ff8a5c', colC:'#b98cff', colFlux:'#4fffb0'
+};
+
+/* ============================================================
+   SCÈNE / CAMÉRA / RENDU
+   ============================================================ */
+const holder = document.getElementById('canvasHolder');
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x03050a, 0.018);
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth/innerHeight, 0.1, 500);
+camera.position.set(15, 10, 19);
+
+const renderer = new THREE.WebGLRenderer({antialias:true, powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.95;
+holder.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 3;
+controls.maxDistance = 90;
+const DEFAULT_CAM = camera.position.clone();
+const DEFAULT_TARGET = new THREE.Vector3(0,0,0);
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), params.bloom, 0.5, 0.42);
+composer.addPass(bloomPass);
+composer.addPass(new OutputPass());
+
+/* ============================================================
+   LUMIÈRES
+   ============================================================ */
+scene.add(new THREE.AmbientLight(0x223344, 1.1));
+const key = new THREE.PointLight(0xbfe8ff, 3.2, 60, 2);
+key.position.set(8,10,6);
+scene.add(key);
+const rim = new THREE.PointLight(0xff8a5c, 1.4, 60, 2);
+rim.position.set(-10,-6,-8);
+scene.add(rim);
+
+/* ============================================================
+   ÉTOILES DE FOND
+   ============================================================ */
+{
+  const N = 1800;
+  const pos = new Float32Array(N*3);
+  for(let i=0;i<N;i++){
+    const r = 60 + Math.random()*140;
+    const th = Math.random()*Math.PI*2, ph = Math.acos(2*Math.random()-1);
+    pos[i*3]   = r*Math.sin(ph)*Math.cos(th);
+    pos[i*3+1] = r*Math.sin(ph)*Math.sin(th);
+    pos[i*3+2] = r*Math.cos(ph);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  const m = new THREE.PointsMaterial({color:0x88aaff, size:0.35, transparent:true, opacity:0.55, sizeAttenuation:true});
+  scene.add(new THREE.Points(g,m));
+}
+
+/* ============================================================
+   AXES X / Y / Z + GRILLE
+   ============================================================ */
+function makeTextSprite(text, color){
+  const c = document.createElement('canvas'); c.width=128; c.height=128;
+  const ctx = c.getContext('2d');
+  ctx.font = '700 84px system-ui,sans-serif';
+  ctx.fillStyle = color; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.shadowColor = color; ctx.shadowBlur = 18;
+  ctx.fillText(text, 64, 68);
+  const tex = new THREE.CanvasTexture(c);
+  const mat = new THREE.SpriteMaterial({map:tex, transparent:true, depthWrite:false});
+  const spr = new THREE.Sprite(mat);
+  spr.scale.set(0.9,0.9,0.9);
+  return spr;
+}
+
+const axesGroup = new THREE.Group();
+const AXIS_LEN = 13;
+function addAxis(dir, color, label){
+  const g = new LineGeometry();
+  g.setPositions([-dir.x*AXIS_LEN,-dir.y*AXIS_LEN,-dir.z*AXIS_LEN, dir.x*AXIS_LEN,dir.y*AXIS_LEN,dir.z*AXIS_LEN]);
+  const m = new LineMaterial({color, linewidth:1.6, transparent:true, opacity:0.55});
+  m.resolution.set(innerWidth, innerHeight);
+  const line = new Line2(g,m);
+  axesGroup.add(line);
+  const spr = makeTextSprite(label, '#'+color.toString(16).padStart(6,'0'));
+  spr.position.copy(dir).multiplyScalar(AXIS_LEN + 0.7);
+  axesGroup.add(spr);
+  for(let t=-AXIS_LEN+1; t<AXIS_LEN; t++){
+    if(t===0) continue;
+    const tickGeo = new THREE.SphereGeometry(0.03,6,6);
+    const tickMat = new THREE.MeshBasicMaterial({color, transparent:true, opacity:0.35});
+    const tick = new THREE.Mesh(tickGeo, tickMat);
+    tick.position.copy(dir).multiplyScalar(t);
+    axesGroup.add(tick);
+  }
+}
+addAxis(new THREE.Vector3(1,0,0), 0xff5c5c, 'X');
+addAxis(new THREE.Vector3(0,1,0), 0x5cff8a, 'Y');
+addAxis(new THREE.Vector3(0,0,1), 0x5c9bff, 'Z');
+scene.add(axesGroup);
+
+const grid = new THREE.GridHelper(30, 30, 0x4a7aab, 0x1c2c40);
+grid.material.transparent = true; grid.material.opacity = 0.4;
+grid.visible = params.grid;
+scene.add(grid);
+
+/* ============================================================
+   MATÉRIAU "COEUR" — sphère à double lobe (2 ventricules)
+   ============================================================ */
+const heartVertex = `
+  uniform float uV1;    // ventricule 1 (expansion)
+  uniform float uV2;    // ventricule 2 (contraction)
+  uniform float uPolarity;
+  uniform float uAmp;
+  varying vec3 vNormal;
+  varying vec3 vViewPos;
+  varying float vDisp;
+  void main(){
+    float hemi = smoothstep(-0.12, 0.12, normal.y);
+    float top = mix(uV2, uV1, step(0.0, uPolarity));
+    float bot = mix(uV1, uV2, step(0.0, uPolarity));
+    float d = mix(bot, top, hemi);
+    vDisp = d;
+    vec3 pos = position + normal * d * uAmp;
+    vNormal = normalize(normalMatrix * normal);
+    vec4 mv = modelViewMatrix * vec4(pos, 1.0);
+    vViewPos = -mv.xyz;
+    gl_Position = projectionMatrix * mv;
+  }
+`;
+const heartFragment = `
+  uniform vec3 uColor;
+  varying vec3 vNormal;
+  varying vec3 vViewPos;
+  varying float vDisp;
+  void main(){
+    vec3 N = normalize(vNormal);
+    vec3 V = normalize(vViewPos);
+    float fresnel = pow(1.0 - max(dot(N,V), 0.0), 2.4);
+    float diffuse = max(dot(N, normalize(vec3(0.5,0.8,0.4))), 0.0);
+    float glow = 0.22 + 0.22 * vDisp + diffuse * 0.35;
+    vec3 base = uColor * glow;
+    vec3 col = base + uColor * fresnel * 0.55;
+    gl_FragColor = vec4(col, 1.0);
+  }
+`;
+
+function makeCenter(name, colorHex, radius){
+  const geo = new THREE.SphereGeometry(radius, 96, 96);
+  const mat = new THREE.ShaderMaterial({
+    uniforms:{
+      uV1:{value:0}, uV2:{value:0}, uPolarity:{value:1},
+      uAmp:{value:radius*params.amp}, uColor:{value:new THREE.Color(colorHex)}
+    },
+    vertexShader: heartVertex, fragmentShader: heartFragment
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.name = name;
+
+  const wireGeo = new THREE.SphereGeometry(radius*1.035, 20, 14);
+  const wireMat = new THREE.MeshBasicMaterial({color:colorHex, wireframe:true, transparent:true, opacity:0.16});
+  const wire = new THREE.Mesh(wireGeo, wireMat);
+  mesh.add(wire);
+
+  const glowGeo = new THREE.SphereGeometry(radius*1.35, 24, 24);
+  const glowMat = new THREE.MeshBasicMaterial({color:colorHex, transparent:true, opacity:0.028, side:THREE.BackSide});
+  mesh.add(new THREE.Mesh(glowGeo, glowMat));
+
+  return {mesh, wire, radius, baseRadius:radius, color:new THREE.Color(colorHex)};
+}
+
+const SIZE_A = 1.55, SIZE_B0 = 0.9, SIZE_C0 = 0.5; // tailles de référence avant exagération
+
+const A = makeCenter('A', params.colA, SIZE_A);
+const B = makeCenter('B', params.colB, SIZE_B0);
+const C = makeCenter('C', params.colC, SIZE_C0);
+scene.add(A.mesh, B.mesh, C.mesh);
+
+/* ============================================================
+   TRAJECTOIRES FERMÉES (Line2, traînée fondue en cascade)
+   ============================================================ */
+function makeTrail(colorHex, maxPoints){
+  const geometry = new LineGeometry();
+  const positions = new Float32Array(maxPoints*3);
+  const colors = new Float32Array(maxPoints*3);
+  geometry.setPositions(positions);
+  geometry.setColors(colors);
+  const material = new LineMaterial({
+    linewidth: 2.0, transparent:true, opacity:0.95,
+    vertexColors:true, blending:THREE.AdditiveBlending, depthWrite:false
+  });
+  material.resolution.set(innerWidth, innerHeight);
+  const line = new Line2(geometry, material);
+  line.computeLineDistances();
+  const buf = [];
+  const base = new THREE.Color(colorHex);
+  return {line, buf, maxPoints, positions, colors, base,
+    push(v){
+      buf.push(v.x,v.y,v.z);
+      if(buf.length > maxPoints*3) buf.splice(0, buf.length - maxPoints*3);
+      const n = buf.length/3;
+      for(let i=0;i<n;i++){
+        positions[i*3]   = buf[i*3];
+        positions[i*3+1] = buf[i*3+1];
+        positions[i*3+2] = buf[i*3+2];
+        const f = 0.08 + 0.92*(i/Math.max(1,n-1));
+        colors[i*3]   = base.r*f;
+        colors[i*3+1] = base.g*f;
+        colors[i*3+2] = base.b*f;
+      }
+      for(let i=n;i<maxPoints;i++){
+        positions[i*3]=positions[(n-1)*3]||0;
+        positions[i*3+1]=positions[(n-1)*3+1]||0;
+        positions[i*3+2]=positions[(n-1)*3+2]||0;
+        colors[i*3]=colors[i*3+1]=colors[i*3+2]=0;
+      }
+      this.line.geometry.setPositions(positions);
+      this.line.geometry.setColors(colors);
+      this.line.computeLineDistances();
+    }
+  };
+}
+const trailB = makeTrail(params.colB, 3000);
+const trailC = makeTrail(params.colC, 3600);
+scene.add(trailB.line, trailC.line);
+
+/* ============================================================
+   CHAMP DE FLUX DYNAMIQUE (particules)
+   ============================================================ */
+function makeDot(){
+  const c = document.createElement('canvas'); c.width=c.height=32;
+  const ctx = c.getContext('2d');
+  const g = ctx.createRadialGradient(16,16,0,16,16,16);
+  g.addColorStop(0,'rgba(255,255,255,1)');
+  g.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,32,32);
+  return new THREE.CanvasTexture(c);
+}
+const dotTex = makeDot();
+
+let fluxCapacity = 6000;
+const fluxPos = new Float32Array(fluxCapacity*3);
+const fluxCol = new Float32Array(fluxCapacity*3);
+const fluxSeed = new Float32Array(fluxCapacity*3);
+for(let i=0;i<fluxCapacity;i++){
+  const r = 3 + Math.random()*11;
+  const th = Math.random()*Math.PI*2, ph = Math.acos(2*Math.random()-1);
+  fluxPos[i*3]   = r*Math.sin(ph)*Math.cos(th);
+  fluxPos[i*3+1] = r*Math.sin(ph)*Math.sin(th)*0.6;
+  fluxPos[i*3+2] = r*Math.cos(ph);
+  fluxSeed[i*3]=Math.random()*10; fluxSeed[i*3+1]=Math.random()*10; fluxSeed[i*3+2]=Math.random()*10;
+}
+const fluxGeo = new THREE.BufferGeometry();
+fluxGeo.setAttribute('position', new THREE.BufferAttribute(fluxPos,3).setUsage(THREE.DynamicDrawUsage));
+fluxGeo.setAttribute('color', new THREE.BufferAttribute(fluxCol,3).setUsage(THREE.DynamicDrawUsage));
+fluxGeo.setDrawRange(0, params.fluxCount);
+const fluxMat = new THREE.PointsMaterial({
+  size:0.14, map:dotTex, transparent:true, opacity:0.85, vertexColors:true,
+  blending:THREE.AdditiveBlending, depthWrite:false, sizeAttenuation:true
+});
+const fluxPoints = new THREE.Points(fluxGeo, fluxMat);
+scene.add(fluxPoints);
+
+function fakeCurl(x,y,z,t){
+  const vx = Math.sin(y*0.6+t*0.7) - Math.cos(z*0.5-t*0.4);
+  const vy = Math.sin(z*0.55-t*0.5) - Math.cos(x*0.6+t*0.35);
+  const vz = Math.sin(x*0.5+t*0.6) - Math.cos(y*0.55-t*0.45);
+  return [vx,vy,vz];
+}
+
+/* ============================================================
+   INTERFACE UTILISATEUR
+   ============================================================ */
+const $ = id => document.getElementById(id);
+$('colA').oninput = e=>{ params.colA=e.target.value; A.mesh.material.uniforms.uColor.value.set(params.colA); A.color.set(params.colA); trailB.base.set(params.colA); };
+$('colB').oninput = e=>{ params.colB=e.target.value; B.mesh.material.uniforms.uColor.value.set(params.colB); B.color.set(params.colB); trailB.base.set(params.colB); };
+$('colC').oninput = e=>{ params.colC=e.target.value; C.mesh.material.uniforms.uColor.value.set(params.colC); C.color.set(params.colC); trailC.base.set(params.colC); };
+$('colFlux').oninput = e=>{ params.colFlux=e.target.value; };
+
+$('speed').oninput = e=>{ params.speed=+e.target.value; $('vSpeed').textContent = params.speed.toFixed(2)+'×'; };
+$('amp').oninput = e=>{ params.amp=+e.target.value; $('vAmp').textContent = params.amp.toFixed(2); };
+$('exag').oninput = e=>{ params.exag=+e.target.value; $('vExag').textContent = params.exag.toFixed(2); applyExaggeration(); };
+$('bloom').oninput = e=>{ params.bloom=+e.target.value; $('vBloom').textContent = params.bloom.toFixed(2); bloomPass.strength = params.bloom; };
+$('fluxCount').oninput = e=>{ params.fluxCount=+e.target.value; $('vFlux').textContent = params.fluxCount; fluxGeo.setDrawRange(0, params.fluxCount); };
+
+document.querySelectorAll('.tbtn[data-t]').forEach(btn=>{
+  btn.onclick = ()=>{
+    const key = btn.dataset.t;
+    params[key] = !params[key];
+    btn.classList.toggle('active', params[key]);
+    if(key==='axes') axesGroup.visible = params.axes;
+    if(key==='orbits'){ trailB.line.visible = params.orbits; trailC.line.visible = params.orbits; }
+    if(key==='flux') fluxPoints.visible = params.flux;
+    if(key==='wire'){ A.wire.visible=B.wire.visible=C.wire.visible=params.wire; }
+    if(key==='grid') grid.visible = params.grid;
+    if(key==='hud') document.getElementById('hud').style.display = params.hud?'block':'none';
+  };
+});
+
+$('btnPlay').onclick = function(){
+  params.playing = !params.playing;
+  this.textContent = params.playing ? '⏸ Pause' : '▶ Lecture';
+  this.classList.toggle('active', params.playing);
+};
+$('btnReset').onclick = ()=>{
+  camera.position.copy(DEFAULT_CAM);
+  controls.target.copy(DEFAULT_TARGET);
+};
+$('panelToggle').onclick = ()=> document.getElementById('panel').classList.toggle('open');
+
+function applyExaggeration(){
+  const sb = SIZE_A * params.exag;
+  const sc = sb * params.exag;
+  rebuildRadius(A, SIZE_A);
+  rebuildRadius(B, sb);
+  rebuildRadius(C, sc);
+}
+function rebuildRadius(center, r){
+  center.radius = r;
+  center.mesh.geometry.dispose();
+  center.mesh.geometry = new THREE.SphereGeometry(r, 96, 96);
+  center.wire.geometry.dispose();
+  center.wire.geometry = new THREE.SphereGeometry(r*1.035, 20, 14);
+}
+applyExaggeration();
+
+/* ============================================================
+   BOUCLE D'ANIMATION
+   ============================================================ */
+const clock = new THREE.Clock();
+let simTime = 0;
+let lastTrailPhase = -999;
+
+const posA = new THREE.Vector3();
+const posB = new THREE.Vector3();
+const posC = new THREE.Vector3();
+
+function orbitLocal(phase, radius){
+  const x = radius * Math.sin(phase * RATIO.breathExpand);
+  const y = radius * 0.6 * Math.sin(phase * RATIO.breathContract + Math.PI/2);
+  const z = radius * 0.5 * Math.sin(phase * 43/60 + Math.PI/4);
+  return new THREE.Vector3(x,y,z);
+}
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if(params.playing) simTime += dt * params.speed * BASE_OMEGA;
+  const phase = simTime;
+
+  // ---- polarité globale (battement d'interférence 11/10 vs 10/11) ----
+  const polarSignal = Math.sin(phase*RATIO.polarExpand) - Math.sin(phase*RATIO.polarContract);
+  const polarity = polarSignal >= 0 ? 1 : -1;
+
+  // ---- cascade de phase A -> B -> C ----
+  const phaseA = phase;
+  const phaseB = phase + PHASE_LAG;
+  const phaseC = phase + PHASE_LAG*2;
+
+  function breath(p){
+    return { v1: Math.sin(p*RATIO.breathExpand), v2: Math.sin(p*RATIO.breathContract) };
+  }
+  const bA = breath(phaseA), bB = breath(phaseB), bC = breath(phaseC);
+
+  A.mesh.material.uniforms.uV1.value = bA.v1;
+  A.mesh.material.uniforms.uV2.value = bA.v2;
+  A.mesh.material.uniforms.uPolarity.value = polarity;
+  A.mesh.material.uniforms.uAmp.value = A.radius * params.amp;
+
+  B.mesh.material.uniforms.uV1.value = bB.v1;
+  B.mesh.material.uniforms.uV2.value = bB.v2;
+  B.mesh.material.uniforms.uPolarity.value = polarity;
+  B.mesh.material.uniforms.uAmp.value = B.radius * params.amp;
+
+  C.mesh.material.uniforms.uV1.value = bC.v1;
+  C.mesh.material.uniforms.uV2.value = bC.v2;
+  C.mesh.material.uniforms.uPolarity.value = polarity;
+  C.mesh.material.uniforms.uAmp.value = C.radius * params.amp;
+
+  // ---- A : fixe, mais léger balancement polaire (11/10 / 10/11) ----
+  posA.set(0, 0.12*Math.sin(phase*RATIO.polarExpand)*Math.cos(phase*RATIO.polarContract*0.5), 0);
+  A.mesh.position.copy(posA);
+  A.mesh.rotation.y += dt * 0.15 * polarity;
+
+  // ---- B orbite autour de A (sinusoïde fermée) ----
+  const RB = 6.0;
+  const localB = orbitLocal(phaseB, RB);
+  posB.copy(posA).add(localB);
+  B.mesh.position.copy(posB);
+
+  // ---- C orbite autour de B + précession spirale 12/11 ----
+  const RC = 2.3;
+  const localC = orbitLocal(phaseC, RC);
+  const precess = phase * RATIO.spiral;
+  const cosP = Math.cos(precess), sinP = Math.sin(precess);
+  const rx = localC.x*cosP - localC.z*sinP;
+  const rz = localC.x*sinP + localC.z*cosP;
+  posC.copy(posB).add(new THREE.Vector3(rx, localC.y, rz));
+  C.mesh.position.copy(posC);
+
+  // ---- traînées (échantillonnées par pas de phase constant) ----
+  if(phase - lastTrailPhase > 0.035){
+    trailB.push(posB);
+    trailC.push(posC);
+    lastTrailPhase = phase;
+  }
+
+  // ---- flux fluide ----
+  if(params.flux){
+    const n = params.fluxCount;
+    const targets = [posA, posB, posC];
+    const tcols = [A.color, B.color, C.color];
+    const fluxColor = new THREE.Color(params.colFlux);
+    for(let i=0;i<n;i++){
+      let x=fluxPos[i*3], y=fluxPos[i*3+1], z=fluxPos[i*3+2];
+      const [vx,vy,vz] = fakeCurl(x*0.3+fluxSeed[i*3], y*0.3+fluxSeed[i*3+1], z*0.3+fluxSeed[i*3+2], simTime);
+      let ax=vx*0.6, ay=vy*0.6, az=vz*0.6;
+      let minD=1e9, nearest=0;
+      for(let k=0;k<3;k++){
+        const dx=targets[k].x-x, dy=targets[k].y-y, dz=targets[k].z-z;
+        const d2=dx*dx+dy*dy+dz*dz;
+        const d=Math.sqrt(d2)+0.001;
+        const pull = Math.min(0.9/d2, 0.4);
+        ax += dx/d*pull; ay += dy/d*pull; az += dz/d*pull;
+        if(d<minD){minD=d; nearest=k;}
+      }
+      x += ax*dt*params.speed; y += ay*dt*params.speed; z += az*dt*params.speed;
+      const r2 = x*x+y*y+z*z;
+      if(r2 > 26*26){ x*=0.05; y*=0.05*0.6; z*=0.05; }
+      fluxPos[i*3]=x; fluxPos[i*3+1]=y; fluxPos[i*3+2]=z;
+
+      const w = 1 - Math.min(minD/6, 1);
+      const c = tcols[nearest].clone().lerp(fluxColor, 0.55).multiplyScalar(0.4 + 0.6*w);
+      fluxCol[i*3]=c.r; fluxCol[i*3+1]=c.g; fluxCol[i*3+2]=c.b;
+    }
+    fluxGeo.attributes.position.needsUpdate = true;
+    fluxGeo.attributes.color.needsUpdate = true;
+  }
+
+  // ---- HUD ----
+  if(params.hud){
+    const massB = RATIO.mass, massC = RATIO.mass*RATIO.mass;
+    document.getElementById('hud').innerHTML = `
+      <div class="sec">Polarité du système</div>
+      <div class="row"><span class="lbl">État</span><b>${polarity>0?'EXPANSION (6/5)':'CONTRACTION (5/6)'}</b></div>
+      <div class="row"><span class="lbl">Phase cosmique φ</span><b>${(phase%(2*Math.PI)).toFixed(3)} rad</b></div>
+      <div class="sec">Masses relatives (ratio réel)</div>
+      <div class="row"><span class="lbl">A</span><b>1.000000</b></div>
+      <div class="row"><span class="lbl">B = A × 0.999999</span><b>${massB.toFixed(6)}</b></div>
+      <div class="row"><span class="lbl">C = B × 0.999999</span><b>${massC.toFixed(6)}</b></div>
+      <div class="sec">Cinématique</div>
+      <div class="row"><span class="lbl">Orbite B (fermée)</span><b>ratios 6/5 · 5/6</b></div>
+      <div class="row"><span class="lbl">Spirale C</span><b>ratio 12/11</b></div>
+      <div class="row"><span class="lbl">Polaire A</span><b>11/10 ↔ 10/11</b></div>
+    `;
+  }
+
+  controls.update();
+  composer.render();
+}
+
+document.getElementById('loading').style.opacity = '0';
+setTimeout(()=>document.getElementById('loading').remove(), 650);
+animate();
+
+/* ============================================================
+   RESIZE
+   ============================================================ */
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
+  bloomPass.setSize(innerWidth, innerHeight);
+  trailB.line.material.resolution.set(innerWidth, innerHeight);
+  trailC.line.material.resolution.set(innerWidth, innerHeight);
+  axesGroup.children.forEach(o=>{ if(o.material && o.material.resolution) o.material.resolution.set(innerWidth, innerHeight); });
+});
+</script>
+</body>
+</html>
