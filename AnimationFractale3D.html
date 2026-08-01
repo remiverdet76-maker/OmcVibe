@@ -60,6 +60,14 @@
   .field label{display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-bottom:4px;}
   .field label span.val{color:var(--text);font-family:var(--mono);}
   input[type=range]{width:100%;accent-color:var(--accent);height:4px;}
+  select{
+    width:100%;padding:7px 8px;border-radius:8px;font-size:11.5px;
+    background:rgba(255,255,255,0.04);color:var(--text);
+    border:1px solid var(--panel-border);font-family:inherit;cursor:pointer;
+  }
+  select:focus{outline:none;border-color:var(--accent);}
+  select optgroup{background:#0a1420;color:var(--accent2);font-style:normal;}
+  select option{background:#0a1420;color:var(--text);}
   .colorrow{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
   .colorrow span{font-size:11px;color:var(--text-dim);}
   input[type=color]{width:36px;height:22px;border:none;border-radius:6px;background:none;cursor:pointer;padding:0;}
@@ -140,6 +148,38 @@
   </div>
 
   <hr>
+  <div class="field">
+    <label>Ratio de spirale — Centre C</label>
+    <select id="spiralRatio">
+      <optgroup label="Prioritaires">
+        <option value="6/5">6 / 5 — expansion</option>
+        <option value="5/6">5 / 6 — contraction</option>
+        <option value="10/11">10 / 11 — polaire contraction</option>
+        <option value="11/10">11 / 10 — polaire expansion</option>
+        <option value="12/11" selected>12 / 11 — spirale (défaut)</option>
+      </optgroup>
+      <optgroup label="Harmoniques musicales">
+        <option value="16/15">16 / 15 — demi-ton</option>
+        <option value="15/16">15 / 16</option>
+        <option value="9/8">9 / 8 — ton majeur</option>
+        <option value="8/9">8 / 9</option>
+        <option value="5/4">5 / 4 — tierce majeure</option>
+        <option value="4/3">4 / 3 — quarte</option>
+        <option value="3/2">3 / 2 — quinte</option>
+        <option value="5/3">5 / 3 — sixte majeure</option>
+        <option value="2/1">2 / 1 — octave</option>
+      </optgroup>
+      <optgroup label="Irrationnels — spirale jamais fermée">
+        <option value="1.6180339887">φ — nombre d'or (1.618…)</option>
+        <option value="1.4142135624">√2 — ratio d'argent (1.414…)</option>
+      </optgroup>
+      <optgroup label="Référence">
+        <option value="1/1">1 / 1 — aucune précession</option>
+      </optgroup>
+    </select>
+  </div>
+
+  <hr>
   <div class="toggles">
     <div class="tbtn active" data-t="axes">Axes X/Y/Z</div>
     <div class="tbtn active" data-t="orbits">Trajectoires</div>
@@ -183,11 +223,13 @@ const RATIO = {
   breathContract: 5/6,    // 0.8333   contraction inverse
   polarExpand  : 11/10,   // 1.1      expansion polaire du centre fixe
   polarContract: 10/11,   // 0.9091   contraction polaire opposée
-  spiral       : 12/11,   // 1.0909   précession en spirale du centre C
   mass         : 0.999999 // 99.9999% — masse de chaque centre / masse du précédent
 };
 const PHASE_LAG = 0.55;   // décalage de cascade A -> B -> C (couplage entraîné)
 const BASE_OMEGA = 0.8;   // vitesse angulaire de base du battement cosmique
+
+let spiralRatio = 12/11;        // ratio de précession de C — modifiable via le sélecteur
+let spiralRatioLabel = '12/11'; // affichage HUD
 
 const params = {
   speed: 1, amp: 0.16, exag: 0.55, bloom: 0.6, fluxCount: 2600,
@@ -419,6 +461,11 @@ function makeTrail(colorHex, maxPoints){
       this.line.geometry.setPositions(positions);
       this.line.geometry.setColors(colors);
       this.line.computeLineDistances();
+    },
+    reset(){
+      buf.length = 0;
+      colors.fill(0);
+      this.line.geometry.setColors(colors);
     }
   };
 }
@@ -484,6 +531,15 @@ $('amp').oninput = e=>{ params.amp=+e.target.value; $('vAmp').textContent = para
 $('exag').oninput = e=>{ params.exag=+e.target.value; $('vExag').textContent = params.exag.toFixed(2); applyExaggeration(); };
 $('bloom').oninput = e=>{ params.bloom=+e.target.value; $('vBloom').textContent = params.bloom.toFixed(2); bloomPass.strength = params.bloom; };
 $('fluxCount').oninput = e=>{ params.fluxCount=+e.target.value; $('vFlux').textContent = params.fluxCount; fluxGeo.setDrawRange(0, params.fluxCount); };
+
+$('spiralRatio').onchange = e=>{
+  const raw = e.target.value;
+  spiralRatio = raw.includes('/')
+    ? raw.split('/').reduce((a,b)=>+a/+b)
+    : parseFloat(raw);
+  spiralRatioLabel = e.target.selectedOptions[0].textContent;
+  trailC.reset();
+};
 
 document.querySelectorAll('.tbtn[data-t]').forEach(btn=>{
   btn.onclick = ()=>{
@@ -593,7 +649,7 @@ function animate(){
   // ---- C orbite autour de B + précession spirale 12/11 ----
   const RC = 2.3;
   const localC = orbitLocal(phaseC, RC);
-  const precess = phase * RATIO.spiral;
+  const precess = phase * spiralRatio;
   const cosP = Math.cos(precess), sinP = Math.sin(precess);
   const rx = localC.x*cosP - localC.z*sinP;
   const rz = localC.x*sinP + localC.z*cosP;
@@ -652,7 +708,7 @@ function animate(){
       <div class="row"><span class="lbl">C = B × 0.999999</span><b>${massC.toFixed(6)}</b></div>
       <div class="sec">Cinématique</div>
       <div class="row"><span class="lbl">Orbite B (fermée)</span><b>ratios 6/5 · 5/6</b></div>
-      <div class="row"><span class="lbl">Spirale C</span><b>ratio 12/11</b></div>
+      <div class="row"><span class="lbl">Spirale C</span><b>${spiralRatioLabel}</b></div>
       <div class="row"><span class="lbl">Polaire A</span><b>11/10 ↔ 10/11</b></div>
     `;
   }
