@@ -139,7 +139,7 @@
     <input type="range" id="avLag" min="0" max="3.14159" step="0.01" value="1.5708">
   </div>
   <div class="field">
-    <label>Exagération visuelle des masses <span class="val" id="vExag">0.55</span></label>
+    <label>Réduction fractale (masse & orbite) <span class="val" id="vExag">0.55</span></label>
     <input type="range" id="exag" min="0.25" max="0.9" step="0.01" value="0.55">
   </div>
   <div class="field">
@@ -544,7 +544,7 @@ $('avLag').oninput = e=>{
   const frac = avLag/Math.PI;
   $('vAvLag').textContent = frac.toFixed(2)+'π';
 };
-$('exag').oninput = e=>{ params.exag=+e.target.value; $('vExag').textContent = params.exag.toFixed(2); applyExaggeration(); };
+$('exag').oninput = e=>{ params.exag=+e.target.value; $('vExag').textContent = params.exag.toFixed(2); applyExaggeration(); trailC.reset(); };
 $('bloom').oninput = e=>{ params.bloom=+e.target.value; $('vBloom').textContent = params.bloom.toFixed(2); bloomPass.strength = params.bloom; };
 $('fluxCount').oninput = e=>{ params.fluxCount=+e.target.value; $('vFlux').textContent = params.fluxCount; fluxGeo.setDrawRange(0, params.fluxCount); };
 
@@ -718,13 +718,19 @@ function animate(){
   A.mesh.rotation.y += dt * 0.15 * polarity;
 
   // ---- B orbite autour de A (sinusoïde fermée, périastre garanti — jamais de contact) ----
+  // Rayon de référence pour le premier niveau de la cascade.
+  const spreadB = 6.0 * params.orbitScale;
   const floorB = (A.radius + B.radius) * (1+params.amp) * 1.15;
-  const localB = orbitLocal(phaseB, 6.0*params.orbitScale, floorB);
+  const localB = orbitLocal(phaseB, spreadB, floorB);
   posB.copy(posA).add(localB);
 
   // ---- C orbite autour de B + précession spirale 12/11 ----
+  // Même réduction que celle appliquée à la masse/taille (params.exag) : C orbite B
+  // exactement comme B orbite A, réduit du même facteur — vraie auto-similarité,
+  // au lieu de deux rayons choisis indépendamment à la main.
+  const spreadC = spreadB * params.exag;
   const floorC = (B.radius + C.radius) * (1+params.amp) * 1.15;
-  const localC = orbitLocal(phaseC, 2.3*params.orbitScale, floorC);
+  const localC = orbitLocal(phaseC, spreadC, floorC);
   const precess = phase * spiralRatio;
   const cosP = Math.cos(precess), sinP = Math.sin(precess);
   const rx = localC.x*cosP - localC.z*sinP;
