@@ -178,6 +178,10 @@
       </optgroup>
     </select>
   </div>
+  <div class="field">
+    <label>Étendue des orbites <span class="val" id="vOrbitScale">1.00×</span></label>
+    <input type="range" id="orbitScale" min="0.4" max="3" step="0.05" value="1">
+  </div>
 
   <hr>
   <div class="toggles">
@@ -192,6 +196,7 @@
   <div class="toggles">
     <div class="tbtn active" id="btnPlay" style="flex:1 1 100%">⏸ Pause</div>
     <div class="tbtn" id="btnReset" style="flex:1 1 100%">↺ Réinitialiser caméra</div>
+    <div class="tbtn" id="btnFullscreen" style="flex:1 1 100%">⛶ Plein écran</div>
   </div>
 </div>
 
@@ -232,7 +237,7 @@ let spiralRatio = 12/11;        // ratio de précession de C — modifiable via 
 let spiralRatioLabel = '12/11'; // affichage HUD
 
 const params = {
-  speed: 1, amp: 0.16, exag: 0.55, bloom: 0.6, fluxCount: 2600,
+  speed: 1, amp: 0.16, exag: 0.55, bloom: 0.6, fluxCount: 2600, orbitScale: 1,
   axes:true, orbits:true, flux:true, wire:true, grid:false, hud:true,
   playing:true,
   colA:'#6fd6ff', colB:'#ff8a5c', colC:'#b98cff', colFlux:'#4fffb0'
@@ -260,7 +265,7 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.06;
 controls.minDistance = 3;
-controls.maxDistance = 90;
+controls.maxDistance = 260;
 const DEFAULT_CAM = camera.position.clone();
 const DEFAULT_TARGET = new THREE.Vector3(0,0,0);
 
@@ -541,6 +546,13 @@ $('spiralRatio').onchange = e=>{
   trailC.reset();
 };
 
+$('orbitScale').oninput = e=>{
+  params.orbitScale = +e.target.value;
+  $('vOrbitScale').textContent = params.orbitScale.toFixed(2)+'×';
+  trailB.reset();
+  trailC.reset();
+};
+
 document.querySelectorAll('.tbtn[data-t]').forEach(btn=>{
   btn.onclick = ()=>{
     const key = btn.dataset.t;
@@ -565,6 +577,24 @@ $('btnReset').onclick = ()=>{
   controls.target.copy(DEFAULT_TARGET);
 };
 $('panelToggle').onclick = ()=> document.getElementById('panel').classList.toggle('open');
+
+function toggleFullscreen(){
+  const el = document.documentElement;
+  if(!document.fullscreenElement && !document.webkitFullscreenElement){
+    (el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen)?.call(el);
+  } else {
+    (document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen)?.call(document);
+  }
+}
+$('btnFullscreen').onclick = toggleFullscreen;
+['fullscreenchange','webkitfullscreenchange'].forEach(ev=>{
+  document.addEventListener(ev, ()=>{
+    const active = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    $('btnFullscreen').textContent = active ? '⤢ Quitter le plein écran' : '⛶ Plein écran';
+    $('btnFullscreen').classList.toggle('active', active);
+    setTimeout(()=>window.dispatchEvent(new Event('resize')), 60);
+  });
+});
 
 function applyExaggeration(){
   const sb = SIZE_A * params.exag;
@@ -641,13 +671,13 @@ function animate(){
   A.mesh.rotation.y += dt * 0.15 * polarity;
 
   // ---- B orbite autour de A (sinusoïde fermée) ----
-  const RB = 6.0;
+  const RB = 6.0 * params.orbitScale;
   const localB = orbitLocal(phaseB, RB);
   posB.copy(posA).add(localB);
   B.mesh.position.copy(posB);
 
   // ---- C orbite autour de B + précession spirale 12/11 ----
-  const RC = 2.3;
+  const RC = 2.3 * params.orbitScale;
   const localC = orbitLocal(phaseC, RC);
   const precess = phase * spiralRatio;
   const cosP = Math.cos(precess), sinP = Math.sin(precess);
