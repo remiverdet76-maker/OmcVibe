@@ -110,7 +110,7 @@
 
 <div id="title" class="glass">
   <h1>Système Fractal à 3 Centres</h1>
-  <p>A (fixe) impose son battement polaire 11/10 ↔ 10/11. B et C reproduisent en cascade la même respiration fractale 6/5 ↔ 5/6, chacun à 99,9999&nbsp;% de la masse du précédent. C précesse en spirale au ratio 12/11.</p>
+  <p>A (fixe) impose son battement polaire 11/10 ↔ 10/11. B et C reproduisent en cascade la même respiration fractale 6/5 ↔ 5/6, chacun à 99,9999&nbsp;% de la masse du précédent. C précesse en spirale au ratio 12/11. Chaque centre contracte son hémisphère « oreillettes » avant son hémisphère « ventricules », séparés par un délai de conduction — comme un vrai cycle cardiaque.</p>
 </div>
 
 <div id="hud" class="glass"></div>
@@ -133,6 +133,10 @@
   <div class="field">
     <label>Amplitude respiration <span class="val" id="vAmp">0.16</span></label>
     <input type="range" id="amp" min="0.02" max="0.4" step="0.01" value="0.16">
+  </div>
+  <div class="field">
+    <label>Délai auriculo-ventriculaire <span class="val" id="vAvLag">π/2</span></label>
+    <input type="range" id="avLag" min="0" max="3.14159" step="0.01" value="1.5708">
   </div>
   <div class="field">
     <label>Exagération visuelle des masses <span class="val" id="vExag">0.55</span></label>
@@ -235,6 +239,11 @@ const BASE_OMEGA = 0.8;   // vitesse angulaire de base du battement cosmique
 
 let spiralRatio = 12/11;        // ratio de précession de C — modifiable via le sélecteur
 let spiralRatioLabel = '12/11'; // affichage HUD
+
+// Délai de conduction auriculo-ventriculaire : dans un vrai cœur, les oreillettes
+// se contractent, PUIS (après un court délai) les ventricules — jamais en miroir simultané.
+// Un quart de cycle (π/2) reproduit ce rapport (~0,15-0,2 du cycle cardiaque réel).
+let avLag = Math.PI/2;
 
 const params = {
   speed: 1, amp: 0.16, exag: 0.55, bloom: 0.6, fluxCount: 2600, orbitScale: 1,
@@ -357,18 +366,15 @@ scene.add(grid);
    MATÉRIAU "COEUR" — sphère à double lobe (2 ventricules)
    ============================================================ */
 const heartVertex = `
-  uniform float uV1;    // ventricule 1 (expansion)
-  uniform float uV2;    // ventricule 2 (contraction)
-  uniform float uPolarity;
+  uniform float uAtria; // hémisphère haut — se contracte en premier
+  uniform float uVent;  // hémisphère bas — suit après le délai auriculo-ventriculaire
   uniform float uAmp;
   varying vec3 vNormal;
   varying vec3 vViewPos;
   varying float vDisp;
   void main(){
     float hemi = smoothstep(-0.12, 0.12, normal.y);
-    float top = mix(uV2, uV1, step(0.0, uPolarity));
-    float bot = mix(uV1, uV2, step(0.0, uPolarity));
-    float d = mix(bot, top, hemi);
+    float d = mix(uVent, uAtria, hemi);
     vDisp = d;
     vec3 pos = position + normal * d * uAmp;
     vNormal = normalize(normalMatrix * normal);
@@ -398,7 +404,7 @@ function makeCenter(name, colorHex, radius){
   const geo = new THREE.SphereGeometry(radius, 96, 96);
   const mat = new THREE.ShaderMaterial({
     uniforms:{
-      uV1:{value:0}, uV2:{value:0}, uPolarity:{value:1},
+      uAtria:{value:0}, uVent:{value:0},
       uAmp:{value:radius*params.amp}, uColor:{value:new THREE.Color(colorHex)}
     },
     vertexShader: heartVertex, fragmentShader: heartFragment
@@ -533,6 +539,11 @@ $('colFlux').oninput = e=>{ params.colFlux=e.target.value; };
 
 $('speed').oninput = e=>{ params.speed=+e.target.value; $('vSpeed').textContent = params.speed.toFixed(2)+'×'; };
 $('amp').oninput = e=>{ params.amp=+e.target.value; $('vAmp').textContent = params.amp.toFixed(2); };
+$('avLag').oninput = e=>{
+  avLag = +e.target.value;
+  const frac = avLag/Math.PI;
+  $('vAvLag').textContent = frac.toFixed(2)+'π';
+};
 $('exag').oninput = e=>{ params.exag=+e.target.value; $('vExag').textContent = params.exag.toFixed(2); applyExaggeration(); };
 $('bloom').oninput = e=>{ params.bloom=+e.target.value; $('vBloom').textContent = params.bloom.toFixed(2); bloomPass.strength = params.bloom; };
 $('fluxCount').oninput = e=>{ params.fluxCount=+e.target.value; $('vFlux').textContent = params.fluxCount; fluxGeo.setDrawRange(0, params.fluxCount); };
@@ -661,21 +672,28 @@ function animate(){
   function breath(p){
     return { v1: Math.sin(p*RATIO.breathExpand), v2: Math.sin(p*RATIO.breathContract) };
   }
-  const bA = breath(phaseA), bB = breath(phaseB), bC = breath(phaseC);
+  // oreillette (hémisphère haut) = phase du centre ; ventricule (bas) = même onde,
+  // mais retardée de avLag — reproduit la séquence contraction auriculaire -> ventriculaire.
+  function chamberValues(centerPhase){
+    const bAtr = breath(centerPhase);
+    const bVen = breath(centerPhase - avLag);
+    return {
+      atria: polarity>=0 ? bAtr.v1 : bAtr.v2,
+      vent:  polarity>=0 ? bVen.v1 : bVen.v2
+    };
+  }
+  const cA = chamberValues(phaseA), cB = chamberValues(phaseB), cC = chamberValues(phaseC);
 
-  A.mesh.material.uniforms.uV1.value = bA.v1;
-  A.mesh.material.uniforms.uV2.value = bA.v2;
-  A.mesh.material.uniforms.uPolarity.value = polarity;
+  A.mesh.material.uniforms.uAtria.value = cA.atria;
+  A.mesh.material.uniforms.uVent.value = cA.vent;
   A.mesh.material.uniforms.uAmp.value = A.radius * params.amp;
 
-  B.mesh.material.uniforms.uV1.value = bB.v1;
-  B.mesh.material.uniforms.uV2.value = bB.v2;
-  B.mesh.material.uniforms.uPolarity.value = polarity;
+  B.mesh.material.uniforms.uAtria.value = cB.atria;
+  B.mesh.material.uniforms.uVent.value = cB.vent;
   B.mesh.material.uniforms.uAmp.value = B.radius * params.amp;
 
-  C.mesh.material.uniforms.uV1.value = bC.v1;
-  C.mesh.material.uniforms.uV2.value = bC.v2;
-  C.mesh.material.uniforms.uPolarity.value = polarity;
+  C.mesh.material.uniforms.uAtria.value = cC.atria;
+  C.mesh.material.uniforms.uVent.value = cC.vent;
   C.mesh.material.uniforms.uAmp.value = C.radius * params.amp;
 
   // ---- A : fixe, mais léger balancement polaire (11/10 / 10/11) ----
@@ -760,6 +778,8 @@ function animate(){
       <div class="row"><span class="lbl">Orbite B (fermée)</span><b>ratios 6/5 · 5/6</b></div>
       <div class="row"><span class="lbl">Spirale C</span><b>${spiralRatioLabel}</b></div>
       <div class="row"><span class="lbl">Polaire A</span><b>11/10 ↔ 10/11</b></div>
+      <div class="sec">Cycle cardiaque</div>
+      <div class="row"><span class="lbl">Oreillettes → ventricules</span><b>${(avLag/Math.PI).toFixed(2)}π de délai</b></div>
     `;
   }
 
