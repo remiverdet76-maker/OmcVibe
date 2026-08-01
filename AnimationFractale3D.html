@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>Système Fractal à 3 Centres — Respiration Cosmique</title>
+<title>Cœur Céleste, Astre de Feu &amp; Globe d'Azur</title>
 <style>
   :root{
     --bg:#03050a;
@@ -128,8 +128,8 @@
 <div id="canvasHolder"></div>
 
 <div id="title" class="glass">
-  <h1>Système Fractal à 3 Centres</h1>
-  <p>A (fixe) impose son battement polaire 11/10 ↔ 10/11. B et C orbitent chacun dans leur propre plan fermé, contractés par leur centre parent en 10/11 et résistant avec leur propre polarité 11/10 — le même champ fractal de gravité qui protège chaque échelle. B et C reproduisent en cascade la même respiration 6/5 ↔ 5/6, chacun à 99,9999&nbsp;% de la masse du précédent. C précesse en spirale au ratio 12/11. Chaque centre contracte son hémisphère « oreillettes » avant son hémisphère « ventricules » — comme un vrai cycle cardiaque.</p>
+  <h1>Cœur Céleste, Astre de Feu &amp; Globe d'Azur</h1>
+  <p>Le Cœur Céleste (fixe) bat d'un battement polaire 11/10 ↔ 10/11 et anime le mouvement sinusoïdal stable de l'Astre de Feu, qui à son tour anime celui du Globe d'Azur — l'influence ne se transmet que d'un maillon au suivant, jamais directement du premier au dernier. L'Astre de Feu précesse en spirale autour du Cœur Céleste, et le Globe d'Azur précesse en spirale autour de l'Astre de Feu, au même ratio 12/11 — le même mouvement à chaque étage. Les trois respirent selon la même loi fractale 6/5 ↔ 5/6, chacun à 99,9999&nbsp;% de la masse du précédent. Chaque centre contracte son hémisphère « oreillettes » avant son hémisphère « ventricules » — comme un vrai cycle cardiaque.</p>
 </div>
 
 <div id="hud" class="glass"></div>
@@ -138,20 +138,20 @@
 <div id="panel" class="glass">
   <h2>Paramètres</h2>
 
-  <div class="colorrow"><span>Centre A (fixe)</span><input type="color" id="colA" value="#6fd6ff"></div>
-  <div class="colorrow"><span>Centre B</span><input type="color" id="colB" value="#ff8a5c"></div>
-  <div class="colorrow"><span>Centre C (spirale)</span><input type="color" id="colC" value="#b98cff"></div>
-  <div class="colorrow"><span>Flux fluide</span><input type="color" id="colFlux" value="#4fffb0"></div>
+  <div class="colorrow"><span>Cœur Céleste (A, fixe)</span><input type="color" id="colA" value="#f6cf8e"></div>
+  <div class="colorrow"><span>Astre de Feu (B)</span><input type="color" id="colB" value="#ff6a45"></div>
+  <div class="colorrow"><span>Globe d'Azur (C, spirale)</span><input type="color" id="colC" value="#4fb2ff"></div>
+  <div class="colorrow"><span>Flux fluide</span><input type="color" id="colFlux" value="#8fd9ff"></div>
 
   <hr>
 
   <div class="field">
-    <label>Vitesse globale <span class="val" id="vSpeed">1.00×</span></label>
-    <input type="range" id="speed" min="0.05" max="6" step="0.01" value="1">
+    <label>Vitesse globale <span class="val" id="vSpeed">0.55×</span></label>
+    <input type="range" id="speed" min="0.05" max="6" step="0.01" value="0.55">
   </div>
   <div class="field">
-    <label>Amplitude respiration <span class="val" id="vAmp">0.16</span></label>
-    <input type="range" id="amp" min="0.02" max="0.4" step="0.01" value="0.16">
+    <label>Amplitude respiration <span class="val" id="vAmp">0.12</span></label>
+    <input type="range" id="amp" min="0.02" max="0.4" step="0.01" value="0.12">
   </div>
   <div class="field">
     <label>Délai auriculo-ventriculaire <span class="val" id="vAvLag">π/2</span></label>
@@ -162,8 +162,8 @@
     <input type="range" id="exag" min="0.25" max="0.9" step="0.01" value="0.55">
   </div>
   <div class="field">
-    <label>Intensité lumineuse (bloom) <span class="val" id="vBloom">0.60</span></label>
-    <input type="range" id="bloom" min="0" max="2.5" step="0.05" value="0.6">
+    <label>Intensité lumineuse (bloom) <span class="val" id="vBloom">0.50</span></label>
+    <input type="range" id="bloom" min="0" max="2.5" step="0.05" value="0.5">
   </div>
   <div class="field">
     <label>Densité du flux <span class="val" id="vFlux">2600</span></label>
@@ -172,7 +172,7 @@
 
   <hr>
   <div class="field">
-    <label>Ratio de spirale — Centre C</label>
+    <label>Ratio de spirale — B autour de A, C autour de B</label>
     <select id="spiralRatio">
       <optgroup label="Prioritaires">
         <option value="6/5">6 / 5 — expansion</option>
@@ -272,10 +272,10 @@ const TILT_B = Math.PI/9;   // 20°
 const TILT_C = Math.PI/5.5; // ~33°
 
 const params = {
-  speed: 1, amp: 0.16, exag: 0.55, bloom: 0.6, fluxCount: 2600, orbitScale: 1,
+  speed: 0.55, amp: 0.12, exag: 0.55, bloom: 0.5, fluxCount: 2600, orbitScale: 1,
   axes:true, orbits:true, flux:true, wire:true, grid:false, hud:true,
   playing:true,
-  colA:'#6fd6ff', colB:'#ff8a5c', colC:'#b98cff', colFlux:'#4fffb0'
+  colA:'#f6cf8e', colB:'#ff6a45', colC:'#4fb2ff', colFlux:'#8fd9ff'
 };
 
 /* ============================================================
@@ -580,6 +580,7 @@ $('spiralRatio').onchange = e=>{
     ? raw.split('/').reduce((a,b)=>+a/+b)
     : parseFloat(raw);
   spiralRatioLabel = e.target.selectedOptions[0].textContent;
+  trailB.reset();
   trailC.reset();
 };
 
@@ -706,6 +707,13 @@ function orbitLocal(phase, spread, floorR, tilt){
   return dir.multiplyScalar(floorR + len*spread);
 }
 
+// Précession en spirale autour de l'axe Y — appliquée identiquement à B (autour de A) et
+// à C (autour de B) : le même ratio produit le même mouvement à chaque étage de la cascade.
+function precessAroundY(v, angle){
+  const c = Math.cos(angle), s = Math.sin(angle);
+  return new THREE.Vector3(v.x*c - v.z*s, v.y, v.x*s + v.z*c);
+}
+
 const sepVec = new THREE.Vector3();
 // Garde-fou de dernier recours pour le cas composé (C peut, via la précession, repasser
 // près de A même quand B et C respectent chacun leur propre distance minimale).
@@ -767,25 +775,24 @@ function animate(){
   A.mesh.position.copy(posA);
   A.mesh.rotation.y += dt * 0.15 * polarity;
 
-  // ---- B orbite autour de A : plan orbital fermé, périastre fixé par l'équilibre de
+  // ---- précession en spirale, au même ratio, appliquée identiquement à B (autour de A)
+  // et à C (autour de B) : le même mouvement à chaque étage de la cascade ----
+  const precess = phase * spiralRatio;
+
+  // ---- B orbite A : plan orbital fermé + spirale, périastre fixé par l'équilibre de
   // polarité (A contracte en 10/11, B résiste en 11/10 — même champ pour tous les centres) ----
   const spreadB = 6.0 * params.orbitScale;
   const floorB = (A.radius + B.radius) * (1+params.amp) * POLAR_BALANCE;
-  const localB = orbitLocal(phaseB, spreadB, floorB, TILT_B);
+  const localB = precessAroundY(orbitLocal(phaseB, spreadB, floorB, TILT_B), precess);
   posB.copy(posA).add(localB);
 
-  // ---- C orbite autour de B + précession spirale 12/11 ----
-  // Même réduction que celle appliquée à la masse/taille (params.exag) : C orbite B
-  // exactement comme B orbite A, réduit du même facteur — vraie auto-similarité,
-  // au lieu de deux rayons choisis indépendamment à la main.
+  // ---- C orbite B + spirale : même réduction que la masse/taille (params.exag) — C orbite
+  // B exactement comme B orbite A, réduit du même facteur — vraie auto-similarité, au lieu
+  // de deux rayons choisis indépendamment à la main ----
   const spreadC = spreadB * params.exag;
   const floorC = (B.radius + C.radius) * (1+params.amp) * POLAR_BALANCE;
-  const localC = orbitLocal(phaseC, spreadC, floorC, TILT_C);
-  const precess = phase * spiralRatio;
-  const cosP = Math.cos(precess), sinP = Math.sin(precess);
-  const rx = localC.x*cosP - localC.z*sinP;
-  const rz = localC.x*sinP + localC.z*cosP;
-  posC.copy(posB).add(new THREE.Vector3(rx, localC.y, rz));
+  const localC = precessAroundY(orbitLocal(phaseC, spreadC, floorC, TILT_C), precess);
+  posC.copy(posB).add(localC);
 
   // ---- filet de sécurité pour le seul cas encore composé : C vs A ----
   const effA = A.radius*(1+params.amp), effC = C.radius*(1+params.amp);
@@ -846,7 +853,7 @@ function animate(){
       <div class="row"><span class="lbl">C = B × 0.999999</span><b>${massC.toFixed(6)}</b></div>
       <div class="sec">Cinématique</div>
       <div class="row"><span class="lbl">Orbite B (fermée)</span><b>ratios 6/5 · 5/6</b></div>
-      <div class="row"><span class="lbl">Spirale C</span><b>${spiralRatioLabel}</b></div>
+      <div class="row"><span class="lbl">Spirale B &amp; C</span><b>${spiralRatioLabel}</b></div>
       <div class="row"><span class="lbl">Polaire A</span><b>11/10 ↔ 10/11</b></div>
       <div class="sec">Cycle cardiaque</div>
       <div class="row"><span class="lbl">Oreillettes → ventricules</span><b>${(avLag/Math.PI).toFixed(2)}π de délai</b></div>
