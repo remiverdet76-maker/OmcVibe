@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <title>Système Fractal à 3 Centres — Respiration Cosmique</title>
 <style>
   :root{
@@ -93,6 +93,25 @@
     #panelToggle{display:flex;}
     #title{max-width:70vw;}
   }
+
+  /* Mode immersif : marche partout (y compris iOS, où l'API Fullscreen native
+     n'existe pas pour un élément quelconque) — masque toute l'UI, le canvas
+     occupe déjà tout le viewport en dessous. */
+  body.immersive #title, body.immersive #hud,
+  body.immersive #panel, body.immersive #panelToggle{
+    display:none !important;
+  }
+  #fsFab{
+    position:fixed;z-index:50;cursor:pointer;user-select:none;
+    width:42px;height:42px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:17px;color:var(--accent);
+    bottom:calc(16px + env(safe-area-inset-bottom));
+    left:calc(16px + env(safe-area-inset-left));
+    opacity:0.55;transition:opacity .2s ease;
+  }
+  #fsFab:hover, #fsFab:active{opacity:1;}
+  body.immersive #fsFab{opacity:0.32;}
 
   #loading{
     position:fixed;inset:0;background:var(--bg);z-index:20;
@@ -203,6 +222,8 @@
     <div class="tbtn" id="btnFullscreen" style="flex:1 1 100%">⛶ Plein écran</div>
   </div>
 </div>
+
+<div id="fsFab" class="glass" title="Plein écran">⛶</div>
 
 <script type="importmap">
 {
@@ -589,21 +610,34 @@ $('btnReset').onclick = ()=>{
 };
 $('panelToggle').onclick = ()=> document.getElementById('panel').classList.toggle('open');
 
+// Mode immersif : masque toute l'UI et remplit l'écran via CSS — fonctionne
+// partout, y compris iOS où l'API Fullscreen native est indisponible pour un
+// élément quelconque (seule <video> la supporte). En plus, on tente l'API
+// native là où le navigateur la supporte (desktop, Android).
+function setImmersive(on){
+  document.body.classList.toggle('immersive', on);
+  $('btnFullscreen').textContent = on ? '⤢ Quitter le plein écran' : '⛶ Plein écran';
+  $('btnFullscreen').classList.toggle('active', on);
+  setTimeout(()=>window.dispatchEvent(new Event('resize')), 60);
+}
 function toggleFullscreen(){
+  const goingFullscreen = !document.body.classList.contains('immersive');
+  setImmersive(goingFullscreen);
   const el = document.documentElement;
-  if(!document.fullscreenElement && !document.webkitFullscreenElement){
-    (el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen)?.call(el);
-  } else {
-    (document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen)?.call(document);
+  if(goingFullscreen){
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+    Promise.resolve(req?.call(el)).catch(()=>{});
+  } else if(document.fullscreenElement || document.webkitFullscreenElement){
+    const exit = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+    Promise.resolve(exit?.call(document)).catch(()=>{});
   }
 }
 $('btnFullscreen').onclick = toggleFullscreen;
+$('fsFab').onclick = toggleFullscreen;
 ['fullscreenchange','webkitfullscreenchange'].forEach(ev=>{
   document.addEventListener(ev, ()=>{
     const active = !!(document.fullscreenElement || document.webkitFullscreenElement);
-    $('btnFullscreen').textContent = active ? '⤢ Quitter le plein écran' : '⛶ Plein écran';
-    $('btnFullscreen').classList.toggle('active', active);
-    setTimeout(()=>window.dispatchEvent(new Event('resize')), 60);
+    if(!active) setImmersive(false); // ESC / geste système -> on ressort aussi du mode immersif
   });
 });
 
