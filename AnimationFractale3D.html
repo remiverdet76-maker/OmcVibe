@@ -630,6 +630,19 @@ function orbitLocal(phase, radius){
   return new THREE.Vector3(x,y,z);
 }
 
+const sepVec = new THREE.Vector3();
+// Empêche deux sphères de s'interpénétrer : repousse `pos` hors du rayon combiné autour de `center`.
+function keepApart(pos, center, minDist){
+  sepVec.subVectors(pos, center);
+  const dist = sepVec.length();
+  if(dist < 1e-5){
+    pos.copy(center).add(new THREE.Vector3(minDist,0,0));
+  } else if(dist < minDist){
+    sepVec.multiplyScalar(minDist/dist);
+    pos.copy(center).add(sepVec);
+  }
+}
+
 function animate(){
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.05);
@@ -674,7 +687,6 @@ function animate(){
   const RB = 6.0 * params.orbitScale;
   const localB = orbitLocal(phaseB, RB);
   posB.copy(posA).add(localB);
-  B.mesh.position.copy(posB);
 
   // ---- C orbite autour de B + précession spirale 12/11 ----
   const RC = 2.3 * params.orbitScale;
@@ -684,6 +696,14 @@ function animate(){
   const rx = localC.x*cosP - localC.z*sinP;
   const rz = localC.x*sinP + localC.z*cosP;
   posC.copy(posB).add(new THREE.Vector3(rx, localC.y, rz));
+
+  // ---- garde-fou anti-intersection : les sphères ne peuvent pas se pénétrer ----
+  const effA = A.radius*(1+params.amp), effB = B.radius*(1+params.amp), effC = C.radius*(1+params.amp);
+  keepApart(posB, posA, (effA+effB)*1.06);
+  keepApart(posC, posB, (effB+effC)*1.06);
+  keepApart(posC, posA, (effA+effC)*1.06);
+
+  B.mesh.position.copy(posB);
   C.mesh.position.copy(posC);
 
   // ---- traînées (échantillonnées par pas de phase constant) ----
