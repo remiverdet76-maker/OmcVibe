@@ -634,15 +634,31 @@ const posA = new THREE.Vector3();
 const posB = new THREE.Vector3();
 const posC = new THREE.Vector3();
 
-function orbitLocal(phase, radius){
-  const x = radius * Math.sin(phase * RATIO.breathExpand);
-  const y = radius * 0.6 * Math.sin(phase * RATIO.breathContract + Math.PI/2);
-  const z = radius * 0.5 * Math.sin(phase * 43/60 + Math.PI/4);
-  return new THREE.Vector3(x,y,z);
+// La forme angulaire pure du battement (direction seulement, norme non bornée à l'origine :
+// les trois sinusoïdes de fréquences différentes s'annulent simultanément à un instant du
+// cycle — la courbe passerait alors exactement par le centre, ce qu'aucune orbite stable
+// réelle ne fait jamais : le moment cinétique impose toujours un périastre non nul).
+function orbitShape(phase){
+  const x = Math.sin(phase * RATIO.breathExpand);
+  const y = 0.6 * Math.sin(phase * RATIO.breathContract + Math.PI/2);
+  const z = 0.5 * Math.sin(phase * 43/60 + Math.PI/4);
+  return new THREE.Vector3(x, y, z);
+}
+
+// Orbite fermée avec périastre garanti : la direction suit exactement la forme angulaire
+// ci-dessus (le tracé "fleuri" de la sinusoïde reste identique), mais la distance radiale
+// est plancherée à `floorR` — jamais 0 — puis s'étend sur `spread` au-delà. C'est la
+// distance minimale physique, pas une correction appliquée après coup.
+function orbitLocal(phase, spread, floorR){
+  const shape = orbitShape(phase);
+  const len = shape.length();
+  const dir = len > 1e-6 ? shape.multiplyScalar(1/len) : new THREE.Vector3(1,0,0);
+  return dir.multiplyScalar(floorR + len*spread);
 }
 
 const sepVec = new THREE.Vector3();
-// Empêche deux sphères de s'interpénétrer : repousse `pos` hors du rayon combiné autour de `center`.
+// Garde-fou de dernier recours pour le cas composé (C peut, via la précession, repasser
+// près de A même quand B et C respectent chacun leur propre distance minimale).
 function keepApart(pos, center, minDist){
   sepVec.subVectors(pos, center);
   const dist = sepVec.length();
@@ -701,24 +717,22 @@ function animate(){
   A.mesh.position.copy(posA);
   A.mesh.rotation.y += dt * 0.15 * polarity;
 
-  // ---- B orbite autour de A (sinusoïde fermée) ----
-  const RB = 6.0 * params.orbitScale;
-  const localB = orbitLocal(phaseB, RB);
+  // ---- B orbite autour de A (sinusoïde fermée, périastre garanti — jamais de contact) ----
+  const floorB = (A.radius + B.radius) * (1+params.amp) * 1.15;
+  const localB = orbitLocal(phaseB, 6.0*params.orbitScale, floorB);
   posB.copy(posA).add(localB);
 
   // ---- C orbite autour de B + précession spirale 12/11 ----
-  const RC = 2.3 * params.orbitScale;
-  const localC = orbitLocal(phaseC, RC);
+  const floorC = (B.radius + C.radius) * (1+params.amp) * 1.15;
+  const localC = orbitLocal(phaseC, 2.3*params.orbitScale, floorC);
   const precess = phase * spiralRatio;
   const cosP = Math.cos(precess), sinP = Math.sin(precess);
   const rx = localC.x*cosP - localC.z*sinP;
   const rz = localC.x*sinP + localC.z*cosP;
   posC.copy(posB).add(new THREE.Vector3(rx, localC.y, rz));
 
-  // ---- garde-fou anti-intersection : les sphères ne peuvent pas se pénétrer ----
-  const effA = A.radius*(1+params.amp), effB = B.radius*(1+params.amp), effC = C.radius*(1+params.amp);
-  keepApart(posB, posA, (effA+effB)*1.06);
-  keepApart(posC, posB, (effB+effC)*1.06);
+  // ---- filet de sécurité pour le seul cas encore composé : C vs A ----
+  const effA = A.radius*(1+params.amp), effC = C.radius*(1+params.amp);
   keepApart(posC, posA, (effA+effC)*1.06);
 
   B.mesh.position.copy(posB);
