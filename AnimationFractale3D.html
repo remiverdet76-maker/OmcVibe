@@ -129,7 +129,7 @@
 
 <div id="title" class="glass">
   <h1>Système Fractal à 3 Centres</h1>
-  <p>A (fixe) impose son battement polaire 11/10 ↔ 10/11. B et C reproduisent en cascade la même respiration fractale 6/5 ↔ 5/6, chacun à 99,9999&nbsp;% de la masse du précédent. C précesse en spirale au ratio 12/11. Chaque centre contracte son hémisphère « oreillettes » avant son hémisphère « ventricules », séparés par un délai de conduction — comme un vrai cycle cardiaque.</p>
+  <p>A (fixe) impose son battement polaire 11/10 ↔ 10/11. B et C orbitent chacun dans leur propre plan fermé, contractés par leur centre parent en 10/11 et résistant avec leur propre polarité 11/10 — le même champ fractal de gravité qui protège chaque échelle. B et C reproduisent en cascade la même respiration 6/5 ↔ 5/6, chacun à 99,9999&nbsp;% de la masse du précédent. C précesse en spirale au ratio 12/11. Chaque centre contracte son hémisphère « oreillettes » avant son hémisphère « ventricules » — comme un vrai cycle cardiaque.</p>
 </div>
 
 <div id="hud" class="glass"></div>
@@ -265,6 +265,11 @@ let spiralRatioLabel = '12/11'; // affichage HUD
 // se contractent, PUIS (après un court délai) les ventricules — jamais en miroir simultané.
 // Un quart de cycle (π/2) reproduit ce rapport (~0,15-0,2 du cycle cardiaque réel).
 let avLag = Math.PI/2;
+
+// Inclinaisons orbitales fixes (comme deux planètes qui ne partagent jamais tout à fait le
+// même plan) — donne du volume à des orbites qui restent chacune parfaitement planes.
+const TILT_B = Math.PI/9;   // 20°
+const TILT_C = Math.PI/5.5; // ~33°
 
 const params = {
   speed: 1, amp: 0.16, exag: 0.55, bloom: 0.6, fluxCount: 2600, orbitScale: 1,
@@ -668,23 +673,34 @@ const posA = new THREE.Vector3();
 const posB = new THREE.Vector3();
 const posC = new THREE.Vector3();
 
-// La forme angulaire pure du battement (direction seulement, norme non bornée à l'origine :
-// les trois sinusoïdes de fréquences différentes s'annulent simultanément à un instant du
-// cycle — la courbe passerait alors exactement par le centre, ce qu'aucune orbite stable
-// réelle ne fait jamais : le moment cinétique impose toujours un périastre non nul).
+// Course plane et fluide : un vrai plan orbital (x,z), comme l'écliptique d'une planète —
+// deux sinusoïdes en quadrature (6/5, 5/6), pas trois fréquences indépendantes qui font
+// tumbler la trajectoire hors de tout plan. La norme n'est pas bornée à l'origine : les deux
+// sinusoïdes s'annulent simultanément à un instant du cycle (la courbe passerait alors
+// exactement par le centre) — c'est orbitLocal() qui impose le périastre physique ci-dessous.
 function orbitShape(phase){
   const x = Math.sin(phase * RATIO.breathExpand);
-  const y = 0.6 * Math.sin(phase * RATIO.breathContract + Math.PI/2);
-  const z = 0.5 * Math.sin(phase * 43/60 + Math.PI/4);
-  return new THREE.Vector3(x, y, z);
+  const z = Math.sin(phase * RATIO.breathContract + Math.PI/2);
+  return new THREE.Vector3(x, 0, z);
 }
 
-// Orbite fermée avec périastre garanti : la direction suit exactement la forme angulaire
-// ci-dessus (le tracé "fleuri" de la sinusoïde reste identique), mais la distance radiale
-// est plancherée à `floorR` — jamais 0 — puis s'étend sur `spread` au-delà. C'est la
-// distance minimale physique, pas une correction appliquée après coup.
-function orbitLocal(phase, spread, floorR){
-  const shape = orbitShape(phase);
+// Incline le plan orbital autour de l'axe X — comme deux orbites réelles qui ne partagent
+// jamais exactement le même plan (inclinaison écliptique). Rotation rigide : ne change pas
+// la forme de la courbe, seulement son orientation dans l'espace.
+function tiltPlane(v, angle){
+  const c = Math.cos(angle), s = Math.sin(angle);
+  return new THREE.Vector3(v.x, v.y*c - v.z*s, v.y*s + v.z*c);
+}
+
+// Orbite fermée avec périastre garanti par l'équilibre de polarité, pas une marge arbitraire :
+// le parent contracte l'enfant en 10/11, l'enfant résiste avec sa propre polarité 11/10 —
+// cette même force s'applique à tous les centres (c'est le principe fractal de la gravité).
+// L'équilibre des deux fixe la distance minimale ; la direction suit la forme du plan orbital
+// ci-dessus (inchangée), seule la distance radiale est plancherée à `floorR`, puis s'étend
+// sur `spread` au-delà.
+const POLAR_BALANCE = RATIO.polarExpand / RATIO.polarContract; // (11/10) / (10/11)
+function orbitLocal(phase, spread, floorR, tilt){
+  const shape = tiltPlane(orbitShape(phase), tilt);
   const len = shape.length();
   const dir = len > 1e-6 ? shape.multiplyScalar(1/len) : new THREE.Vector3(1,0,0);
   return dir.multiplyScalar(floorR + len*spread);
@@ -751,11 +767,11 @@ function animate(){
   A.mesh.position.copy(posA);
   A.mesh.rotation.y += dt * 0.15 * polarity;
 
-  // ---- B orbite autour de A (sinusoïde fermée, périastre garanti — jamais de contact) ----
-  // Rayon de référence pour le premier niveau de la cascade.
+  // ---- B orbite autour de A : plan orbital fermé, périastre fixé par l'équilibre de
+  // polarité (A contracte en 10/11, B résiste en 11/10 — même champ pour tous les centres) ----
   const spreadB = 6.0 * params.orbitScale;
-  const floorB = (A.radius + B.radius) * (1+params.amp) * 1.15;
-  const localB = orbitLocal(phaseB, spreadB, floorB);
+  const floorB = (A.radius + B.radius) * (1+params.amp) * POLAR_BALANCE;
+  const localB = orbitLocal(phaseB, spreadB, floorB, TILT_B);
   posB.copy(posA).add(localB);
 
   // ---- C orbite autour de B + précession spirale 12/11 ----
@@ -763,8 +779,8 @@ function animate(){
   // exactement comme B orbite A, réduit du même facteur — vraie auto-similarité,
   // au lieu de deux rayons choisis indépendamment à la main.
   const spreadC = spreadB * params.exag;
-  const floorC = (B.radius + C.radius) * (1+params.amp) * 1.15;
-  const localC = orbitLocal(phaseC, spreadC, floorC);
+  const floorC = (B.radius + C.radius) * (1+params.amp) * POLAR_BALANCE;
+  const localC = orbitLocal(phaseC, spreadC, floorC, TILT_C);
   const precess = phase * spiralRatio;
   const cosP = Math.cos(precess), sinP = Math.sin(precess);
   const rx = localC.x*cosP - localC.z*sinP;
@@ -773,7 +789,7 @@ function animate(){
 
   // ---- filet de sécurité pour le seul cas encore composé : C vs A ----
   const effA = A.radius*(1+params.amp), effC = C.radius*(1+params.amp);
-  keepApart(posC, posA, (effA+effC)*1.06);
+  keepApart(posC, posA, (effA+effC)*POLAR_BALANCE);
 
   B.mesh.position.copy(posB);
   C.mesh.position.copy(posC);
