@@ -3,50 +3,31 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
-<title>OmcV — Les Anneaux de Solônde</title>
+<title>OmcV — La Sphère de Solônde</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg0:#07060d;
-    --bg1:#0c0a1a;
-    --gold:#d4a843;
-    --gold2:#f5d97a;
-    --gold-dim: rgba(212,168,67,0.35);
-    --spring-a:#8fd9a8; --spring-b:#f2a6c9;
-    --summer-a:#f5d97a; --summer-b:#e8833a;
-    --autumn-a:#e8833a; --autumn-b:#8a4a2e;
-    --winter-a:#7ea8f0; --winter-b:#7b58d4;
-    --ink:#f3ecdd;
-    --ink-dim: rgba(243,236,221,0.62);
+    --bg0:#07060d; --bg1:#0c0a1a;
+    --gold:#d4a843; --gold2:#f5d97a;
+    --ink:#f3ecdd; --ink-dim: rgba(243,236,221,0.62);
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   html,body{
-    height:100%;
-    overflow:hidden;
-    background:var(--bg0);
-    font-family:'Cormorant Garamond', serif;
-    color:var(--ink);
-    -webkit-tap-highlight-color:transparent;
-    touch-action:none;
+    height:100%; overflow:hidden; background:var(--bg0);
+    font-family:'Cormorant Garamond', serif; color:var(--ink);
+    -webkit-tap-highlight-color:transparent; touch-action:none;
   }
   #stage{
-    position:fixed; inset:0;
+    position:fixed; inset:0; overflow:hidden;
     background:
-      radial-gradient(ellipse 70% 50% at 50% 18%, rgba(123,88,212,0.16) 0%, transparent 60%),
-      radial-gradient(ellipse 90% 70% at 50% 100%, rgba(212,168,67,0.10) 0%, transparent 55%),
+      radial-gradient(ellipse 70% 50% at 50% 18%, rgba(232,74,74,0.10) 0%, transparent 60%),
+      radial-gradient(ellipse 90% 70% at 50% 100%, rgba(123,88,212,0.12) 0%, transparent 55%),
       radial-gradient(circle at 50% 42%, #16122a 0%, #0c0a1a 45%, #07060d 100%);
-    overflow:hidden;
   }
   #stars{position:absolute; inset:0; z-index:0;}
   canvas#gl{position:absolute; inset:0; z-index:1; display:block; cursor:grab;}
   canvas#gl:active{cursor:grabbing;}
-  svg#dial{
-    position:absolute; inset:0; z-index:2;
-    width:100%; height:100%;
-    pointer-events:none;
-    transition:opacity .9s ease;
-  }
   .noise{
     position:absolute; inset:0; z-index:3; pointer-events:none;
     opacity:.035; mix-blend-mode:overlay;
@@ -59,71 +40,83 @@
   }
   header h1{
     font-family:'Cinzel',serif; font-weight:600;
-    font-size:clamp(1.1rem,3.4vw,1.9rem);
-    letter-spacing:.09em;
-    background:linear-gradient(96deg,var(--gold2),var(--gold),#f2a6c9,var(--winter-a),var(--gold));
+    font-size:clamp(1.05rem,3.2vw,1.8rem); letter-spacing:.09em;
+    background:linear-gradient(96deg,#e8384a,var(--gold2),#7b58d4,#e8384a);
     -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
     filter:drop-shadow(0 0 18px rgba(212,168,67,0.25));
   }
-  header p{
-    margin-top:6px; font-style:italic; font-size:.92rem;
-    color:var(--ink-dim); letter-spacing:.02em;
-  }
-  .fade-out{opacity:0 !important; transform:translateY(-8px);}
+  header p{margin-top:6px; font-style:italic; font-size:.88rem; color:var(--ink-dim);}
+  .fade-out{opacity:0 !important; transform:translateY(-8px); pointer-events:none;}
 
-  #legend{
-    position:absolute; top:112px; left:22px; z-index:5;
-    font-size:.82rem; line-height:1.7;
-    transition:opacity .9s ease;
+  #hint{
+    position:absolute; left:22px; bottom:26px; z-index:5;
+    font-size:.74rem; color:var(--ink-dim); font-style:italic;
+    opacity:.55; max-width:220px; transition:opacity .9s ease;
   }
-  #legend .row{display:flex; align-items:center; gap:8px; margin-bottom:2px;}
-  #legend .dot{width:9px;height:9px;border-radius:50%; flex:none; box-shadow:0 0 8px currentColor;}
-  #legend .lbl{color:var(--ink-dim);}
-  #legend .lbl b{color:var(--ink); font-weight:600; font-style:normal;}
-
+  #meditateWord{
+    position:absolute; left:50%; top:50%; z-index:4; transform:translate(-50%,-50%);
+    font-family:'Cinzel',serif; font-size:1.05rem; letter-spacing:.35em;
+    text-transform:uppercase; color:var(--gold2); opacity:0; pointer-events:none;
+    text-shadow:0 0 24px rgba(245,217,122,0.5); transition:opacity 2.6s ease;
+  }
   #controls{
-    position:absolute; left:50%; bottom:26px; z-index:6;
-    transform:translateX(-50%);
-    display:flex; gap:8px;
-    padding:8px; border-radius:999px;
-    background:rgba(18,15,30,0.55);
-    border:1px solid rgba(212,168,67,0.25);
+    position:absolute; left:50%; bottom:26px; z-index:6; transform:translateX(-50%);
+    display:flex; gap:8px; padding:8px; border-radius:999px;
+    background:rgba(18,15,30,0.55); border:1px solid rgba(212,168,67,0.25);
     backdrop-filter:blur(14px) saturate(140%);
     box-shadow:0 12px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.04);
   }
   #controls button{
-    font-family:'Cormorant Garamond', serif;
-    font-size:.86rem; letter-spacing:.03em;
-    color:var(--ink-dim);
-    background:transparent; border:1px solid transparent;
-    padding:9px 18px; border-radius:999px; cursor:pointer;
-    transition:all .35s ease;
-    white-space:nowrap;
+    font-family:'Cormorant Garamond', serif; font-size:.86rem; letter-spacing:.03em;
+    color:var(--ink-dim); background:transparent; border:1px solid transparent;
+    padding:9px 18px; border-radius:999px; cursor:pointer; transition:all .35s ease; white-space:nowrap;
   }
   #controls button:hover{color:var(--ink);}
   #controls button.active{
-    color:#1a1408;
-    background:linear-gradient(120deg,var(--gold2),var(--gold));
+    color:#1a1408; background:linear-gradient(120deg,var(--gold2),var(--gold));
     box-shadow:0 4px 18px rgba(212,168,67,0.45);
   }
-  #meditateWord{
-    position:absolute; left:50%; top:50%; z-index:4;
-    transform:translate(-50%,-50%);
-    font-family:'Cinzel',serif; font-size:1.05rem; letter-spacing:.35em;
-    text-transform:uppercase; color:var(--gold2);
-    opacity:0; pointer-events:none;
-    text-shadow:0 0 24px rgba(245,217,122,0.5);
-    transition:opacity 2.6s ease;
-  }
-  #hint{
-    position:absolute; right:20px; bottom:96px; z-index:5;
-    font-size:.74rem; color:var(--ink-dim); font-style:italic;
-    opacity:.55; text-align:right; max-width:170px;
+
+  /* --- Axe Y tactile (curseur de densité) --- */
+  #yaxis{
+    position:absolute; right:18px; top:50%; transform:translateY(-50%);
+    z-index:6; display:flex; align-items:center; gap:10px; height:min(64vh,460px);
     transition:opacity .9s ease;
   }
+  #ytrack{
+    position:relative; width:6px; height:100%; border-radius:999px;
+    background:linear-gradient(180deg,#7b58d4,#4a6fd4 18%,#3ab8a0 38%,#f5d97a 50%,#e8833a 62%,#e8384a 82%,#8a1030);
+    box-shadow:0 0 14px rgba(212,168,67,0.25);
+    touch-action:none;
+  }
+  .ytick{
+    position:absolute; left:-4px; width:14px; height:1.5px; background:rgba(255,255,255,0.55);
+  }
+  .ylabel{
+    position:absolute; left:16px; transform:translateY(-50%);
+    font-size:.7rem; font-style:italic; color:var(--ink-dim); white-space:nowrap;
+  }
+  #ythumb{
+    position:absolute; left:50%; width:22px; height:22px; border-radius:50%;
+    transform:translate(-50%,-50%);
+    background:radial-gradient(circle at 35% 30%,#fff8ea,#f5d97a 55%,#c98a2a 100%);
+    box-shadow:0 0 16px rgba(245,217,122,0.75), 0 2px 6px rgba(0,0,0,0.5);
+    cursor:grab; touch-action:none;
+  }
+  #yreadout{
+    position:absolute; right:44px; top:50%; transform:translateY(-50%);
+    min-width:150px; text-align:right; pointer-events:none;
+    transition:opacity .9s ease;
+  }
+  #yreadout .note{font-family:'Cinzel',serif; font-size:1.35rem; color:var(--gold2); letter-spacing:.06em; text-shadow:0 0 14px rgba(245,217,122,0.4);}
+  #yreadout .val{font-size:.85rem; color:var(--ink-dim);}
+  #yreadout .z{font-size:.72rem; color:var(--ink-dim); opacity:.75;}
+
   @media (max-width:640px){
-    #legend{display:none;}
-    #hint{max-width:120px; right:14px;}
+    #yaxis{height:48vh; right:10px;}
+    #yreadout{right:34px; min-width:110px;}
+    #yreadout .note{font-size:1.1rem;}
+    #hint{max-width:150px; font-size:.68rem;}
     #controls button{padding:9px 13px; font-size:.78rem;}
   }
 </style>
@@ -133,29 +126,30 @@
 <div id="stage">
   <canvas id="stars"></canvas>
   <canvas id="gl"></canvas>
-  <svg id="dial" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet"></svg>
   <div class="noise"></div>
 
   <header>
-    <h1>OmcV — Les Anneaux de Solônde</h1>
-    <p>Modèle organique des quatre densités saisonnières — sans lecture d'heure</p>
+    <h1>OmcV — La Sphère de Solônde</h1>
+    <p>Le centre respire (11/10 ↔ 10/11) · l'anneau ferme le champ de densité</p>
   </header>
 
-  <div id="legend">
-    <div class="row" style="color:var(--spring-a)"><span class="dot"></span><span class="lbl">Printemps — <b>11/10</b> · 1–108</span></div>
-    <div class="row" style="color:var(--summer-a)"><span class="dot"></span><span class="lbl">Été — <b>12/11</b> · 109–216</span></div>
-    <div class="row" style="color:var(--autumn-a)"><span class="dot"></span><span class="lbl">Automne — <b>11/12</b> · 217–324</span></div>
-    <div class="row" style="color:var(--winter-a)"><span class="dot"></span><span class="lbl">Hiver — <b>10/11</b> · 325–432</span></div>
-  </div>
-
-  <div id="hint">glisser pour tourner · l'ellipse s'éveille en vue de dessus</div>
-
+  <div id="hint">glisser : tourner · pincer / molette : zoomer · curseur latéral : niveau de densité</div>
   <div id="meditateWord">respire</div>
 
+  <div id="yaxis">
+    <div id="ytrack">
+      <div id="ythumb"></div>
+    </div>
+  </div>
+  <div id="yreadout">
+    <div class="note" id="yNoteName">Sol</div>
+    <div class="val" id="yValue">142560</div>
+    <div class="z" id="yZ">rayon Z — 1.00</div>
+  </div>
+
   <div id="controls">
-    <button data-view="top" class="active">Vue de dessus</button>
-    <button data-view="side">Vue de côté</button>
-    <button data-view="meditate">Méditation</button>
+    <button id="btnRecenter">Recentrer</button>
+    <button id="btnMeditate">Méditation</button>
   </div>
 </div>
 
@@ -164,25 +158,30 @@
 (function(){
 "use strict";
 
-/* ---------- Données des 4 saisons (densité, couleurs, repères) ---------- */
-const SEASONS = [
-  { key:'spring', name:'Printemps', ratio:'11/10', range:[1,108],   ticks:[36,72,108],    colorA:0x8fd9a8, colorB:0xf2a6c9, hex:['#8fd9a8','#f2a6c9'], density:0.62, speed:1.00, radius:1.55 },
-  { key:'summer', name:'Été',       ratio:'12/11', range:[109,216], ticks:[144,180,216],  colorA:0xf5d97a, colorB:0xe8833a, hex:['#f5d97a','#e8833a'], density:1.00, speed:1.35, radius:1.95 },
-  { key:'autumn', name:'Automne',   ratio:'11/12', range:[217,324], ticks:[252,288,324],  colorA:0xe8833a, colorB:0x8a4a2e, hex:['#e8833a','#8a4a2e'], density:0.80, speed:0.85, radius:2.35 },
-  { key:'winter', name:'Hiver',     ratio:'10/11', range:[325,432], ticks:[360,396,432],  colorA:0x7ea8f0, colorB:0x7b58d4, hex:['#7ea8f0','#7b58d4'], density:0.45, speed:0.55, radius:2.75 },
+/* ================= LES 7 COUPES (axe Y de densité) ================= */
+/* Valeurs dérivées du modèle : Do/Si = pôles ±élasticité, Sol = centre 142560,
+   La/Fa = mi-chemin centre↔pôle, Mi/Re = pôle été / au-delà (142560×6/5 moyenné). */
+const NOTES = [
+  {name:'Do', value:118800},               // 142560 × 5/6 — limite de contraction
+  {name:'Si', value:129600},               // 360×360 — solstice hiver
+  {name:'La', value:136080},               // (142560+129600)/2
+  {name:'Sol',value:142560},               // 396×360 — centre neutre
+  {name:'Fa', value:149040},               // (142560+155520)/2
+  {name:'Mi', value:155520},               // 360×432 — solstice été
+  {name:'Re', value:163296},               // (171072+155520)/2
 ];
+const V_MIN = NOTES[0].value, V_MAX = NOTES[NOTES.length-1].value;
 
-/* ================= STARFIELD (2D canvas, cheap ambient depth) ================= */
+/* ================= STARFIELD ================= */
 (function stars(){
   const c = document.getElementById('stars');
   const ctx = c.getContext('2d');
-  let stars = [];
+  let pts = [];
   function resize(){
-    c.width = innerWidth * devicePixelRatio;
-    c.height = innerHeight * devicePixelRatio;
+    c.width = innerWidth*devicePixelRatio; c.height = innerHeight*devicePixelRatio;
     c.style.width = innerWidth+'px'; c.style.height = innerHeight+'px';
     const n = Math.floor((innerWidth*innerHeight)/9000);
-    stars = Array.from({length:n},()=>({
+    pts = Array.from({length:n},()=>({
       x:Math.random()*c.width, y:Math.random()*c.height,
       r:Math.random()*1.3*devicePixelRatio+0.2,
       a:Math.random()*0.6+0.15, tw:Math.random()*0.015+0.004, p:Math.random()*Math.PI*2
@@ -190,291 +189,328 @@ const SEASONS = [
   }
   function draw(t){
     ctx.clearRect(0,0,c.width,c.height);
-    for(const s of stars){
-      const a = s.a + Math.sin(t*s.tw*60 + s.p)*0.18;
-      ctx.beginPath();
-      ctx.fillStyle = `rgba(243,236,221,${Math.max(0,a)})`;
-      ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
-      ctx.fill();
+    for(const s of pts){
+      const a = s.a + Math.sin(t*s.tw*60+s.p)*0.18;
+      ctx.beginPath(); ctx.fillStyle = `rgba(243,236,221,${Math.max(0,a)})`;
+      ctx.arc(s.x,s.y,s.r,0,Math.PI*2); ctx.fill();
     }
-    requestAnimationFrame((t2)=>draw(t2/1000));
+    requestAnimationFrame(t2=>draw(t2/1000));
   }
-  addEventListener('resize', resize);
-  resize(); draw(0);
+  addEventListener('resize', resize); resize(); draw(0);
 })();
 
-/* ================= THREE.JS SCENE ================= */
+/* ================= THREE.JS ================= */
 const canvas = document.getElementById('gl');
 const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.setSize(innerWidth, innerHeight);
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(38, innerWidth/innerHeight, 0.1, 100);
+const camera = new THREE.PerspectiveCamera(38, innerWidth/innerHeight, 0.05, 100);
 
 const world = new THREE.Group();
 scene.add(world);
-world.rotation.z = THREE.MathUtils.degToRad(-22); // inclinaison "Saturne"
+world.rotation.z = THREE.MathUtils.degToRad(-22);
 
-/* ---- lumière douce ---- */
-scene.add(new THREE.AmbientLight(0x9a86c9, 0.55));
-const key = new THREE.PointLight(0xf5d97a, 2.2, 30, 2);
-key.position.set(4,3,5);
-scene.add(key);
-const rim = new THREE.PointLight(0x7b58d4, 1.1, 30, 2);
-rim.position.set(-5,-2,-4);
-scene.add(rim);
+scene.add(new THREE.AmbientLight(0x9a86c9, 0.5));
+const key = new THREE.PointLight(0xffe3b0, 2.4, 20, 2); key.position.set(2.2,1.6,2.6); scene.add(key);
+const rim = new THREE.PointLight(0x7b58d4, 1.0, 20, 2); rim.position.set(-2.6,-1.2,-2.2); scene.add(rim);
 
-/* ---- texture procédurale organique pour la sphère centrale ---- */
-function makePlanetTexture(){
-  const s = 512;
-  const cv = document.createElement('canvas'); cv.width=s; cv.height=s;
+/* ---- échelle de la scène ---- */
+const TORUS_R = 1.0;
+const SPHERE_R = 0.105;   // ~10x plus petite que dans la v1 (relativement à l'anneau)
+
+/* ---- texture de flux interne : rouge (432) → violet foncé (396) ---- */
+function makeFluxTexture(){
+  const W = 864, H = 256;
+  const cv = document.createElement('canvas'); cv.width=W; cv.height=H;
   const ctx = cv.getContext('2d');
-  const grad = ctx.createLinearGradient(0,0,0,s);
-  grad.addColorStop(0,'#f5d97a'); grad.addColorStop(0.45,'#e8b25a');
-  grad.addColorStop(0.75,'#c97a4a'); grad.addColorStop(1,'#7b4a3a');
-  ctx.fillStyle = grad; ctx.fillRect(0,0,s,s);
-  for(let i=0;i<70;i++){
-    const y = Math.random()*s, h = 6+Math.random()*22;
-    ctx.globalAlpha = 0.05+Math.random()*0.08;
-    ctx.fillStyle = Math.random()>0.5 ? '#fff3d0' : '#5a2f24';
-    ctx.fillRect(0,y,s,h);
+  const seamFrac = 396/432; // 0.9167 — début du segment sombre
+  for(let x=0;x<W;x++){
+    const u = x/W;
+    let hue, light, sat=68;
+    if(u<=seamFrac){
+      hue = (u/seamFrac)*270;         // rouge (0°) -> violet (270°)
+      light = 54;
+    } else {
+      const t2 = (u-seamFrac)/(1-seamFrac);
+      hue = 270; light = 54 - t2*42;  // violet -> presque noir
+      sat = 68 - t2*20;
+    }
+    ctx.fillStyle = `hsl(${hue},${sat}%,${light}%)`;
+    ctx.fillRect(x,0,1,H);
   }
-  ctx.globalAlpha = 1;
+  // légère variation verticale (plus lumineux à l'équateur)
+  const grad = ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'rgba(0,0,0,0.35)'); grad.addColorStop(0.5,'rgba(0,0,0,0)'); grad.addColorStop(1,'rgba(0,0,0,0.35)');
+  ctx.fillStyle = grad; ctx.fillRect(0,0,W,H);
   const tex = new THREE.CanvasTexture(cv);
-  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.ClampToEdgeWrapping;
   return tex;
 }
+const fluxTex = makeFluxTexture();
+const fluxTex2 = fluxTex.clone(); fluxTex2.needsUpdate = true;
 
+/* ---- la sphère centrale (soleil), fermée, déformation légère 11/10 ↔ 10/11 ---- */
 const planet = new THREE.Mesh(
-  new THREE.SphereGeometry(1, 64, 64),
-  new THREE.MeshStandardMaterial({map:makePlanetTexture(), roughness:0.65, metalness:0.08, emissive:0x2a1a08, emissiveIntensity:0.15})
+  new THREE.SphereGeometry(SPHERE_R, 96, 96),
+  new THREE.MeshStandardMaterial({
+    map:fluxTex, emissive:0xffffff, emissiveMap:fluxTex2, emissiveIntensity:0.85,
+    roughness:0.5, metalness:0.05
+  })
 );
 world.add(planet);
 
-/* halo lumineux */
 const glow = new THREE.Mesh(
-  new THREE.SphereGeometry(1.18, 48, 48),
-  new THREE.MeshBasicMaterial({color:0xf5d97a, transparent:true, opacity:0.10, side:THREE.BackSide})
+  new THREE.SphereGeometry(SPHERE_R*1.35, 48, 48),
+  new THREE.MeshBasicMaterial({color:0xffcf8a, transparent:true, opacity:0.16, side:THREE.BackSide})
 );
 world.add(glow);
 
-/* ---- anneaux : guide (torus fin) + particules (flux caractéristique) ---- */
-const ringGroup = new THREE.Group();
-world.add(ringGroup);
-const ringMeta = [];
+/* ---- anneau externe : tube toroïdal translucide qui ferme le champ ---- */
+const torus = new THREE.Mesh(
+  new THREE.TorusGeometry(TORUS_R, 0.014, 20, 160),
+  new THREE.MeshPhysicalMaterial({
+    color:0xf5d97a, transparent:true, opacity:0.30, roughness:0.15, metalness:0.2,
+    transmission:0.35, thickness:0.05, emissive:0xd4a843, emissiveIntensity:0.25
+  })
+);
+torus.rotation.x = Math.PI/2;
+world.add(torus);
 
-SEASONS.forEach((s, idx)=>{
-  const g = new THREE.Group();
+/* petit halo sur le tube pour le lire comme "cadran fermé" */
+const torusGuide = new THREE.Mesh(
+  new THREE.TorusGeometry(TORUS_R, 0.003, 8, 160),
+  new THREE.MeshBasicMaterial({color:0xfff3d0, transparent:true, opacity:0.5})
+);
+torusGuide.rotation.x = Math.PI/2;
+world.add(torusGuide);
 
-  // ligne-guide très fine
-  const guide = new THREE.Mesh(
-    new THREE.TorusGeometry(s.radius, 0.004, 8, 200),
-    new THREE.MeshBasicMaterial({color:s.colorA, transparent:true, opacity:0.35})
-  );
-  guide.rotation.x = Math.PI/2;
-  g.add(guide);
+/* ---- 12 repères + rayons solaires alignés ---- */
+const DIAL = [
+  {v:36},{v:72},{v:108,label:'lever'},{v:144},{v:180},{v:216,label:'zénith'},
+  {v:252},{v:288},{v:324,label:'coucher'},{v:360},{v:396},{v:432,label:'minuit'}
+];
+function labelSprite(text, accent){
+  const cv = document.createElement('canvas'); cv.width=192; cv.height=96;
+  const ctx = cv.getContext('2d');
+  ctx.font = accent ? "600 40px 'Cinzel', serif" : "44px 'Cormorant Garamond', serif";
+  ctx.fillStyle = accent ? '#f5d97a' : 'rgba(243,236,221,0.85)';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.shadowColor = accent ? 'rgba(245,217,122,0.9)' : 'rgba(0,0,0,0.6)';
+  ctx.shadowBlur = accent ? 18 : 6;
+  ctx.fillText(text, 96, 48);
+  const tex = new THREE.CanvasTexture(cv);
+  const mat = new THREE.SpriteMaterial({map:tex, transparent:true, depthWrite:false});
+  const spr = new THREE.Sprite(mat);
+  spr.scale.set(accent?0.24:0.16, accent?0.12:0.08, 1);
+  return spr;
+}
+const rayGroup = new THREE.Group();
+DIAL.forEach(d=>{
+  const a = (d.v/432)*Math.PI*2 - Math.PI/2;
+  const x = Math.cos(a), z = Math.sin(a);
 
-  // particules du flux
-  const count = Math.round(260 * s.density) + 60;
-  const pos = new Float32Array(count*3);
-  const col = new Float32Array(count*3);
-  const seed = new Float32Array(count); // angle initial
-  const jitter = new Float32Array(count); // décalage radial/vertical
-  const cA = new THREE.Color(s.colorA), cB = new THREE.Color(s.colorB);
-  for(let i=0;i<count;i++){
-    const a = Math.random()*Math.PI*2;
-    const rr = s.radius + (Math.random()-0.5)*0.10;
-    const y = (Math.random()-0.5)*0.05;
-    pos[i*3]   = Math.cos(a)*rr;
-    pos[i*3+1] = y;
-    pos[i*3+2] = Math.sin(a)*rr;
-    const c = cA.clone().lerp(cB, Math.random());
-    col[i*3]=c.r; col[i*3+1]=c.g; col[i*3+2]=c.b;
-    seed[i]=a; jitter[i]=Math.random();
+  // rayon solaire : du bord de la sphère (équateur, rayon fixe) jusqu'au tube
+  const pts = [
+    new THREE.Vector3(x*SPHERE_R, 0, z*SPHERE_R),
+    new THREE.Vector3(x*TORUS_R, 0, z*TORUS_R)
+  ];
+  const rayGeo = new THREE.BufferGeometry().setFromPoints(pts);
+  const rayMat = new THREE.LineBasicMaterial({color:0xffdca0, transparent:true, opacity: d.label?0.85:0.4});
+  rayGroup.add(new THREE.Line(rayGeo, rayMat));
+
+  // repère chiffré, posé juste au-delà du tube
+  const spr = labelSprite(String(d.v), !!d.label);
+  spr.position.set(x*(TORUS_R+0.10), 0, z*(TORUS_R+0.10));
+  rayGroup.add(spr);
+
+  if(d.label){
+    const nameSpr = labelSprite(d.label, false);
+    nameSpr.position.set(x*(TORUS_R+0.20), 0, z*(TORUS_R+0.20));
+    nameSpr.scale.set(0.20,0.09,1);
+    rayGroup.add(nameSpr);
   }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(pos,3));
-  geo.setAttribute('color', new THREE.BufferAttribute(col,3));
-  const mat = new THREE.PointsMaterial({
-    size: 0.028 + s.density*0.02, vertexColors:true, transparent:true,
-    opacity:0.92, depthWrite:false, blending:THREE.AdditiveBlending
-  });
-  const points = new THREE.Points(geo, mat);
-  g.add(points);
+});
+world.add(rayGroup);
 
-  g.userData = {seed, jitter, radius:s.radius, speed:s.speed*(idx%2===0?1:-1)*0.18, points};
-  ringGroup.add(g);
-  ringMeta.push(g);
+/* ================= DISQUE DE COUPE (X), piloté par l'axe Y ================= */
+const cutDisk = new THREE.Mesh(
+  new THREE.CircleGeometry(SPHERE_R, 64),
+  new THREE.MeshBasicMaterial({color:0xf5d97a, transparent:true, opacity:0.32, side:THREE.DoubleSide, depthWrite:false})
+);
+cutDisk.rotation.x = Math.PI/2;
+world.add(cutDisk);
+const cutRing = new THREE.Mesh(
+  new THREE.TorusGeometry(SPHERE_R, 0.0015, 8, 64),
+  new THREE.MeshBasicMaterial({color:0xfff3d0, transparent:true, opacity:0.9})
+);
+cutRing.rotation.x = Math.PI/2;
+world.add(cutRing);
+
+let sliderT = (NOTES[3].value - V_MIN)/(V_MAX - V_MIN); // départ sur Sol (centre)
+
+function updateCutDisk(scaleY){
+  const c = SPHERE_R*scaleY;            // demi-axe polaire courant
+  const h = -c + sliderT*2*c;           // hauteur (niveau choisi par l'utilisateur)
+  const a = SPHERE_R;                   // demi-axe équatorial (constant)
+  const ratio = Math.max(0, 1 - (h*h)/(c*c));
+  const z = a*Math.sqrt(ratio);         // rayon de la coupe (Z)
+  cutDisk.position.y = h; cutDisk.scale.set(z/SPHERE_R, z/SPHERE_R, 1);
+  cutRing.position.y = h; cutRing.scale.set(z/SPHERE_R, z/SPHERE_R, 1);
+  return z;
+}
+
+/* ---- lecture / UI de l'axe Y ---- */
+const yTrack = document.getElementById('ytrack');
+const yThumb = document.getElementById('ythumb');
+const elNote = document.getElementById('yNoteName');
+const elVal = document.getElementById('yValue');
+const elZ = document.getElementById('yZ');
+
+NOTES.forEach(n=>{
+  const f = (n.value - V_MIN)/(V_MAX - V_MIN);
+  const tick = document.createElement('div');
+  tick.className='ytick'; tick.style.bottom = (f*100)+'%';
+  yTrack.appendChild(tick);
+  const lbl = document.createElement('div');
+  lbl.className='ylabel'; lbl.style.bottom = (f*100)+'%';
+  lbl.textContent = n.name;
+  yTrack.appendChild(lbl);
 });
 
-/* ================= VUES & INTERACTION ================= */
-let theta = 0.35, phi = 1.02;         // azimut, élévation (rad) — actuel
-let targetPhi = 1.02;                  // 'dessus' par défaut
-const PHI_TOP = 1.02, PHI_SIDE = 0.16;
-let camDist = 6.4;
-let autoSpeed = 0.045;
-let meditating = false;
-let dragging = false, lastX=0, lastY=0;
+function nearestNote(t){
+  const v = V_MIN + t*(V_MAX-V_MIN);
+  let best = NOTES[0], bd = Infinity;
+  NOTES.forEach(n=>{ const d = Math.abs(n.value-v); if(d<bd){bd=d; best=n;} });
+  return {note:best, value:v};
+}
+function renderReadout(){
+  const {note, value} = nearestNote(sliderT);
+  elNote.textContent = note.name;
+  elVal.textContent = Math.round(value);
+}
+function setThumb(){ yThumb.style.bottom = (sliderT*100)+'%'; }
+
+let draggingY = false;
+function yFromClientY(clientY){
+  const r = yTrack.getBoundingClientRect();
+  let t = 1 - (clientY - r.top)/r.height;
+  return Math.max(0, Math.min(1, t));
+}
+yTrack.addEventListener('pointerdown', e=>{ draggingY=true; sliderT=yFromClientY(e.clientY); setThumb(); renderReadout(); });
+addEventListener('pointermove', e=>{ if(draggingY){ sliderT=yFromClientY(e.clientY); setThumb(); renderReadout(); } });
+addEventListener('pointerup', ()=>{
+  if(draggingY){ // aimantation douce vers la coupe la plus proche
+    const {note} = nearestNote(sliderT);
+    sliderT = (note.value - V_MIN)/(V_MAX - V_MIN);
+    setThumb(); renderReadout();
+  }
+  draggingY=false;
+});
+setThumb(); renderReadout();
+
+/* ================= NAVIGATION : rotation / zoom / pan tactile ================= */
+let theta = 0.55, phi = 1.05;
 let userTheta = 0, userPhiOffset = 0;
+let camDist = 2.55;                 // "zoom max" = distance actuelle par défaut
+const MAX_DIST = 2.55, MIN_DIST = 0.55;
+let panX = 0, panY = 0;
+let meditating = false, autoSpeed = 0.05;
 
-function setView(mode){
-  document.querySelectorAll('#controls button').forEach(b=>{
-    if(b.dataset.view==='meditate') return;
-    b.classList.toggle('active', b.dataset.view===mode);
-  });
-  if(mode==='top'){ targetPhi = PHI_TOP; }
-  if(mode==='side'){ targetPhi = PHI_SIDE; }
-}
-document.querySelectorAll('#controls button').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    const v = btn.dataset.view;
-    if(v==='meditate'){
-      meditating = !meditating;
-      btn.classList.toggle('active', meditating);
-      document.body.classList.toggle('meditate', meditating);
-      document.querySelectorAll('header,#legend,#hint').forEach(el=>el.classList.toggle('fade-out', meditating));
-      document.getElementById('meditateWord').style.opacity = meditating ? 0.85 : 0;
-      autoSpeed = meditating ? 0.014 : 0.045;
-      return;
+let touches = {};
+function dist(t1,t2){ return Math.hypot(t1.clientX-t2.clientX, t1.clientY-t2.clientY); }
+let pinchStart = null;
+
+canvas.addEventListener('pointerdown', e=>{
+  canvas.setPointerCapture(e.pointerId);
+  touches[e.pointerId] = {x:e.clientX,y:e.clientY};
+});
+canvas.addEventListener('pointermove', e=>{
+  if(!touches[e.pointerId]) return;
+  const ids = Object.keys(touches);
+  const prev = touches[e.pointerId];
+  const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+
+  if(ids.length===1){
+    userTheta += dx*0.0045;
+    userPhiOffset = Math.max(-0.6, Math.min(0.6, userPhiOffset + dy*0.0035));
+  } else if(ids.length===2){
+    // pan à deux doigts
+    panX += dx*0.0016; panY -= dy*0.0016;
+    panX = Math.max(-0.9, Math.min(0.9, panX));
+    panY = Math.max(-0.7, Math.min(0.7, panY));
+  }
+  touches[e.pointerId] = {x:e.clientX,y:e.clientY};
+});
+['pointerup','pointercancel','pointerleave'].forEach(ev=>{
+  canvas.addEventListener(ev, e=>{ delete touches[e.pointerId]; });
+});
+canvas.addEventListener('wheel', e=>{
+  e.preventDefault();
+  camDist = Math.max(MIN_DIST, Math.min(MAX_DIST, camDist + e.deltaY*0.0016));
+}, {passive:false});
+
+/* pinch pour tactile : distance entre 2 pointeurs */
+let lastPinch = null;
+canvas.addEventListener('pointermove', e=>{
+  const ids = Object.keys(touches);
+  if(ids.length===2){
+    const pts = ids.map(id=>touches[id]);
+    const d = Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y);
+    if(lastPinch!=null){
+      const delta = (lastPinch - d)*0.006;
+      camDist = Math.max(MIN_DIST, Math.min(MAX_DIST, camDist + delta));
     }
-    setView(v);
-  });
+    lastPinch = d;
+  } else { lastPinch = null; }
 });
 
-/* drag pour tourner librement */
-function pointerDown(x,y){ dragging=true; lastX=x; lastY=y; }
-function pointerMove(x,y){
-  if(!dragging) return;
-  userTheta += (x-lastX)*0.0045;
-  userPhiOffset += (y-lastY)*0.0035;
-  userPhiOffset = Math.max(-0.55, Math.min(0.55, userPhiOffset));
-  lastX=x; lastY=y;
-}
-function pointerUp(){ dragging=false; }
-canvas.addEventListener('pointerdown', e=>pointerDown(e.clientX,e.clientY));
-addEventListener('pointermove', e=>pointerMove(e.clientX,e.clientY));
-addEventListener('pointerup', pointerUp);
-
-/* ================= DIAL SVG (ellipse sacrée, 12 repères) ================= */
-const svg = document.getElementById('dial');
-const NS = 'http://www.w3.org/2000/svg';
-function el(tag, attrs){
-  const e = document.createElementNS(NS, tag);
-  for(const k in attrs) e.setAttribute(k, attrs[k]);
-  return e;
-}
-const CX=500, CY=500, RX=340, RY=140; // ellipse "vue de dessus"
-
-function buildDial(){
-  // fond géométrie sacrée : cercles concentriques + 12 rayons
-  const guideG = el('g', {opacity:0.16});
-  [0.4,0.62,0.82,1.0].forEach(f=>{
-    guideG.appendChild(el('ellipse',{cx:CX,cy:CY,rx:RX*f,ry:RY*f,fill:'none',stroke:'#d4a843','stroke-width':1}));
-  });
-  for(let i=0;i<12;i++){
-    const a = (i/12)*Math.PI*2 - Math.PI/2;
-    const x2 = CX + Math.cos(a)*RX, y2 = CY + Math.sin(a)*RY;
-    guideG.appendChild(el('line',{x1:CX,y1:CY,x2,y2,stroke:'#d4a843','stroke-width':1}));
-  }
-  svg.appendChild(guideG);
-
-  // 4 arcs de quadrant colorés
-  const arcG = el('g', {opacity:0.9});
-  SEASONS.forEach((s, i)=>{
-    const a0 = (i/4)*Math.PI*2 - Math.PI/2;
-    const a1 = ((i+1)/4)*Math.PI*2 - Math.PI/2;
-    const p0 = [CX+Math.cos(a0)*RX, CY+Math.sin(a0)*RY];
-    const p1 = [CX+Math.cos(a1)*RX, CY+Math.sin(a1)*RY];
-    const path = el('path',{
-      d:`M ${p0[0]} ${p0[1]} A ${RX} ${RY} 0 0 1 ${p1[0]} ${p1[1]}`,
-      fill:'none', stroke:s.hex[0], 'stroke-width':3.4, 'stroke-linecap':'round',
-      filter:'drop-shadow(0 0 6px '+s.hex[0]+'99)'
-    });
-    arcG.appendChild(path);
-  });
-  svg.appendChild(arcG);
-
-  // 12 repères + libellés + 3 états intermédiaires par saison
-  SEASONS.forEach((s)=>{
-    s.ticks.forEach((tickVal, ti)=>{
-      const frac = tickVal/432;
-      const a = frac*Math.PI*2 - Math.PI/2;
-      const rIn = 0.90, rOut = ti===2 ? 1.10 : 1.02; // le repère de fin de saison ressort plus
-      const x1=CX+Math.cos(a)*RX*rIn, y1=CY+Math.sin(a)*RY*rIn;
-      const x2=CX+Math.cos(a)*RX*rOut, y2=CY+Math.sin(a)*RY*rOut;
-      svg.appendChild(el('line',{x1,y1,x2,y2,stroke:s.hex[1],'stroke-width': ti===2?2.6:1.6, opacity:0.85}));
-      const lx = CX+Math.cos(a)*RX*(rOut+0.10), ly = CY+Math.sin(a)*RY*(rOut+0.14);
-      const txt = el('text',{
-        x:lx, y:ly, 'text-anchor':'middle', 'dominant-baseline':'middle',
-        fill: ti===2 ? s.hex[0] : '#f3ecdd', 'font-family':"'Cormorant Garamond', serif",
-        'font-size': ti===2? 20:14, 'font-style': ti===2? 'normal':'italic',
-        opacity: ti===2? 1: 0.72
-      });
-      txt.textContent = tickVal;
-      svg.appendChild(txt);
-    });
-    // nom de saison au milieu du quadrant
-    const midFrac = ((s.range[0]-1) + 54)/432;
-    const am = midFrac*Math.PI*2 - Math.PI/2;
-    const lx = CX+Math.cos(am)*RX*1.26, ly = CY+Math.sin(am)*RY*1.30;
-    const label = el('text',{
-      x:lx,y:ly,'text-anchor':'middle', fill:s.hex[0], 'font-family':"'Cinzel', serif",
-      'font-size':13, 'letter-spacing':'2px', opacity:0.9
-    });
-    label.textContent = s.name.toUpperCase();
-    svg.appendChild(label);
-  });
-
-  // centre : "432"
-  const center = el('text',{x:CX,y:CY+6,'text-anchor':'middle', fill:'#f5d97a', 'font-family':"'Cinzel',serif", 'font-size':22, opacity:0.35});
-  center.textContent = '432';
-  svg.appendChild(center);
-}
-buildDial();
+document.getElementById('btnRecenter').addEventListener('click', ()=>{
+  userTheta=0; userPhiOffset=0; panX=0; panY=0; camDist=MAX_DIST;
+});
+document.getElementById('btnMeditate').addEventListener('click', (e)=>{
+  meditating = !meditating;
+  e.target.classList.toggle('active', meditating);
+  document.querySelectorAll('header,#hint,#yaxis,#yreadout').forEach(el=>el.classList.toggle('fade-out', meditating));
+  document.getElementById('meditateWord').style.opacity = meditating ? 0.85 : 0;
+  autoSpeed = meditating ? 0.015 : 0.05;
+});
 
 /* ================= BOUCLE D'ANIMATION ================= */
-let clock0 = performance.now();
+let t0 = performance.now();
 function animate(){
   requestAnimationFrame(animate);
   const now = performance.now();
-  const dt = (now-clock0)/1000; clock0 = now;
+  const dt = (now-t0)/1000; t0 = now;
   const t = now/1000;
 
-  // rotation ambiante + drag utilisateur
   theta += autoSpeed*dt;
-  phi += (targetPhi - phi)*0.045;
-  const effPhi = Math.max(0.10, Math.min(1.35, phi + userPhiOffset));
+  const effPhi = Math.max(0.12, Math.min(1.45, phi + userPhiOffset));
   const effTheta = theta + userTheta;
 
-  const breathe = meditating ? 1 + Math.sin(t*0.35)*0.018 : 1 + Math.sin(t*0.6)*0.006;
-  world.scale.setScalar(breathe);
-
   camera.position.set(
-    camDist*Math.sin(effPhi)*Math.cos(effTheta),
-    camDist*Math.cos(effPhi),
+    panX*1.2 + camDist*Math.sin(effPhi)*Math.cos(effTheta),
+    panY*1.0 + camDist*Math.cos(effPhi),
     camDist*Math.sin(effPhi)*Math.sin(effTheta)
   );
-  camera.lookAt(0,0,0);
+  camera.lookAt(panX*1.2, panY, 0);
 
-  planet.rotation.y += 0.05*dt;
+  // respiration du centre : 11/10 ↔ 10/11 le long de l'axe polaire
+  const breathe = meditating ? Math.sin(t*0.28) : Math.sin(t*0.55);
+  const scaleY = 1 + breathe*0.10; // ~ [10/11 .. 11/10]
+  planet.scale.set(1, scaleY, 1);
+  glow.scale.set(1, scaleY, 1);
 
-  ringMeta.forEach(g=>{
-    const {seed, jitter, radius, speed, points} = g.userData;
-    const arr = points.geometry.attributes.position.array;
-    for(let i=0;i<seed.length;i++){
-      const a = seed[i] + t*speed;
-      const rr = radius + Math.sin(t*0.6 + jitter[i]*10)*0.035;
-      arr[i*3]   = Math.cos(a)*rr;
-      arr[i*3+2] = Math.sin(a)*rr;
-      arr[i*3+1] = Math.sin(t*1.3 + jitter[i]*20)*0.03;
-    }
-    points.geometry.attributes.position.needsUpdate = true;
-  });
+  planet.rotation.y += 0.03*dt;
+  fluxTex.offset.x = (fluxTex.offset.x + dt*0.015) % 1;
+  fluxTex2.offset.x = fluxTex.offset.x;
 
-  // l'ellipse "sacrée" ne s'éveille qu'en vue de dessus (fonction continue de phi)
-  const topFactor = Math.max(0, Math.min(1, (effPhi - 0.25) / (PHI_TOP - 0.25)));
-  svg.style.opacity = (meditating ? 0.14 : 0.96) * topFactor + (meditating?0:0.04);
+  updateCutDisk(scaleY);
+  const z = updateCutDisk(scaleY);
+  if(!draggingY) document.getElementById('yZ').textContent = 'rayon Z — ' + z.toFixed(3);
+
+  torus.rotation.z += 0.0015;
 
   renderer.render(scene, camera);
 }
