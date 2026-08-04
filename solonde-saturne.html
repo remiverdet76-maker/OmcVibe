@@ -105,17 +105,17 @@
   }
   #yreadout{
     position:absolute; right:44px; top:50%; transform:translateY(-50%);
-    min-width:150px; text-align:right; pointer-events:none;
+    min-width:170px; text-align:right; pointer-events:none;
     transition:opacity .9s ease;
   }
-  #yreadout .note{font-family:'Cinzel',serif; font-size:1.35rem; color:var(--gold2); letter-spacing:.06em; text-shadow:0 0 14px rgba(245,217,122,0.4);}
+  #yreadout .note{font-family:'Cinzel',serif; font-size:1rem; letter-spacing:.04em; color:var(--gold2); text-shadow:0 0 14px rgba(245,217,122,0.4); white-space:nowrap;}
   #yreadout .val{font-size:.85rem; color:var(--ink-dim);}
   #yreadout .z{font-size:.72rem; color:var(--ink-dim); opacity:.75;}
 
   @media (max-width:640px){
     #yaxis{height:48vh; right:10px;}
-    #yreadout{right:34px; min-width:110px;}
-    #yreadout .note{font-size:1.1rem;}
+    #yreadout{right:34px; min-width:120px;}
+    #yreadout .note{font-size:.82rem;}
     #hint{max-width:150px; font-size:.68rem;}
     #controls button{padding:9px 13px; font-size:.78rem;}
   }
@@ -142,7 +142,7 @@
     </div>
   </div>
   <div id="yreadout">
-    <div class="note" id="yNoteName">Sol</div>
+    <div class="note" id="yNoteName">Centre</div>
     <div class="val" id="yValue">142560</div>
     <div class="z" id="yZ">rayon Z — 1.00</div>
   </div>
@@ -158,19 +158,17 @@
 (function(){
 "use strict";
 
-/* ================= LES 7 COUPES (axe Y de densité) ================= */
-/* Valeurs dérivées du modèle : Do/Si = pôles ±élasticité, Sol = centre 142560,
-   La/Fa = mi-chemin centre↔pôle, Mi/Re = pôle été / au-delà (142560×6/5 moyenné). */
-const NOTES = [
-  {name:'Do', value:118800},               // 142560 × 5/6 — limite de contraction
-  {name:'Si', value:129600},               // 360×360 — solstice hiver
-  {name:'La', value:136080},               // (142560+129600)/2
-  {name:'Sol',value:142560},               // 396×360 — centre neutre
-  {name:'Fa', value:149040},               // (142560+155520)/2
-  {name:'Mi', value:155520},               // 360×432 — solstice été
-  {name:'Re', value:163296},               // (171072+155520)/2
+/* ================= LES 5 DENSITÉS (axe Y) ================= */
+/* Centre 142560, ses deux pôles (×10/11, ×12/11), et les deux projections
+   médianes centre↔pôle. Échelle purement numérique, aucun nom décoratif. */
+const DENSITIES = [
+  {name:'Pôle bas',       value:129600},  // 142560 × 10/11
+  {name:'Polarité proj.', value:136080},  // (129600+142560)/2
+  {name:'Centre',         value:142560},  // 396×360
+  {name:'Projection',     value:149040},  // (155520+142560)/2
+  {name:'Pôle haut',      value:155520},  // 142560 × 12/11
 ];
-const V_MIN = NOTES[0].value, V_MAX = NOTES[NOTES.length-1].value;
+const V_MIN = DENSITIES[0].value, V_MAX = DENSITIES[DENSITIES.length-1].value;
 
 /* ================= STARFIELD ================= */
 (function stars(){
@@ -348,7 +346,7 @@ const cutRing = new THREE.Mesh(
 cutRing.rotation.x = Math.PI/2;
 world.add(cutRing);
 
-let sliderT = (NOTES[3].value - V_MIN)/(V_MAX - V_MIN); // départ sur Sol (centre)
+let sliderT = (DENSITIES[2].value - V_MIN)/(V_MAX - V_MIN); // départ sur le Centre
 
 function updateCutDisk(scaleY){
   const c = SPHERE_R*scaleY;            // demi-axe polaire courant
@@ -368,26 +366,26 @@ const elNote = document.getElementById('yNoteName');
 const elVal = document.getElementById('yValue');
 const elZ = document.getElementById('yZ');
 
-NOTES.forEach(n=>{
-  const f = (n.value - V_MIN)/(V_MAX - V_MIN);
+DENSITIES.forEach(d=>{
+  const f = (d.value - V_MIN)/(V_MAX - V_MIN);
   const tick = document.createElement('div');
   tick.className='ytick'; tick.style.bottom = (f*100)+'%';
   yTrack.appendChild(tick);
   const lbl = document.createElement('div');
   lbl.className='ylabel'; lbl.style.bottom = (f*100)+'%';
-  lbl.textContent = n.name;
+  lbl.textContent = d.value;
   yTrack.appendChild(lbl);
 });
 
-function nearestNote(t){
+function nearestDensity(t){
   const v = V_MIN + t*(V_MAX-V_MIN);
-  let best = NOTES[0], bd = Infinity;
-  NOTES.forEach(n=>{ const d = Math.abs(n.value-v); if(d<bd){bd=d; best=n;} });
-  return {note:best, value:v};
+  let best = DENSITIES[0], bd = Infinity;
+  DENSITIES.forEach(d=>{ const dd = Math.abs(d.value-v); if(dd<bd){bd=dd; best=d;} });
+  return {density:best, value:v};
 }
 function renderReadout(){
-  const {note, value} = nearestNote(sliderT);
-  elNote.textContent = note.name;
+  const {density, value} = nearestDensity(sliderT);
+  elNote.textContent = density.name;
   elVal.textContent = Math.round(value);
 }
 function setThumb(){ yThumb.style.bottom = (sliderT*100)+'%'; }
@@ -401,9 +399,9 @@ function yFromClientY(clientY){
 yTrack.addEventListener('pointerdown', e=>{ draggingY=true; sliderT=yFromClientY(e.clientY); setThumb(); renderReadout(); });
 addEventListener('pointermove', e=>{ if(draggingY){ sliderT=yFromClientY(e.clientY); setThumb(); renderReadout(); } });
 addEventListener('pointerup', ()=>{
-  if(draggingY){ // aimantation douce vers la coupe la plus proche
-    const {note} = nearestNote(sliderT);
-    sliderT = (note.value - V_MIN)/(V_MAX - V_MIN);
+  if(draggingY){ // aimantation douce vers la densité la plus proche
+    const {density} = nearestDensity(sliderT);
+    sliderT = (density.value - V_MIN)/(V_MAX - V_MIN);
     setThumb(); renderReadout();
   }
   draggingY=false;
